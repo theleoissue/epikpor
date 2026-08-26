@@ -196,3 +196,10 @@ $$;
 
 create trigger trg_sesi_piket_ubah after update on public.sesi_piket
   for each row execute function public.log_sesi_piket_ubah();
+
+-- ============================================================
+-- 5. Realtime untuk notifikasi (bel notifikasi di Topbar berlangganan lewat
+--    postgres_changes) — tabel harus didaftarkan ke publication ini secara
+--    eksplisit, tidak otomatis aktif hanya karena tabelnya ada.
+-- ============================================================
+alter publication supabase_realtime add table public.notifikasi;

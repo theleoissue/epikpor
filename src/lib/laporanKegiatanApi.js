@@ -8,9 +8,17 @@ export async function kirimLaporanKegiatan(payload) {
   return data
 }
 
+// PostgREST tidak melempar error kalau RLS memblokir update (baris yang
+// dituju cuma tidak ikut ter-update, 0 baris terdampak, tanpa pesan apa pun)
+// — jadi status keberhasilan dicek manual dari data yang kembali, bukan cuma
+// dari ada/tidaknya error. Tanpa ini, klik "Verifikasi" oleh pengguna yang
+// sebetulnya tidak berhak (mis. salah zona) akan tampak berhasil padahal
+// tidak terjadi apa-apa di database.
 export async function perbaruiLaporanKegiatan(id, patch) {
-  const { error } = await supabase.from('laporan_kegiatan').update(patch).eq('id', id)
+  const { data, error } = await supabase.from('laporan_kegiatan').update(patch).eq('id', id).select().maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Laporan tidak ditemukan atau Anda tidak berhak mengubahnya.')
+  return data
 }
 
 export async function tambahLampiranKegiatan(laporan_kegiatan_id, paths) {
@@ -37,8 +45,19 @@ export async function ambilLaporanKegiatanMenunggu() {
 }
 
 export async function verifikasiLaporanKegiatan(id) {
-  const { error } = await supabase.from('laporan_kegiatan').update({ status: 'TERVERIFIKASI' }).eq('id', id)
+  const { data, error } = await supabase.from('laporan_kegiatan').update({ status: 'TERVERIFIKASI' }).eq('id', id).select().maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Laporan tidak ditemukan atau Anda tidak berhak memverifikasinya.')
+}
+
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// "Sampai tanggal X" harus mencakup seluruh hari X, bukan cuma sampai jam 00:00
+// di awal hari X — makanya dibandingkan dengan awal hari SESUDAHNYA (exclusive).
+function besok(tanggalIso) {
+  const d = new Date(tanggalIso + 'T00:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
 }
 
 // Pencarian arsip 7 kriteria: kata kunci, zona, regu, jenis kegiatan, rentang tanggal, nomor laporan.
@@ -48,8 +67,11 @@ export async function cariArsipKegiatan(filter) {
   if (filter.regu_id) q = q.eq('regu_id', filter.regu_id)
   if (filter.jenis_kegiatan_id) q = q.eq('jenis_kegiatan_id', filter.jenis_kegiatan_id)
   if (filter.dari) q = q.gte('waktu_kirim', filter.dari)
-  if (filter.sampai) q = q.lte('waktu_kirim', filter.sampai)
-  if (filter.nomor) q = q.eq('id', filter.nomor)
+  if (filter.sampai) q = q.lt('waktu_kirim', besok(filter.sampai))
+  if (filter.nomor) {
+    if (!RE_UUID.test(filter.nomor.trim())) return []
+    q = q.eq('id', filter.nomor.trim())
+  }
   if (filter.kataKunci) q = q.or(`lokasi.ilike.%${filter.kataKunci}%,keterangan.ilike.%${filter.kataKunci}%,pelapor_nama.ilike.%${filter.kataKunci}%`)
   const { data, error } = await q.order('waktu_kirim', { ascending: false })
   if (error) throw error

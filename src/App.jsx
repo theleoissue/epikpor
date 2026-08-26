@@ -17,8 +17,11 @@ import { pasangPendengarOnline } from './lib/offlineQueue'
 import { unggahFoto } from './lib/storage'
 import { kirimLaporanKegiatan, tambahLampiranKegiatan } from './lib/laporanKegiatanApi'
 import { kirimLaporanKejadian, tambahLampiranKejadian } from './lib/laporanKejadianApi'
+import { menuUntukPeran } from './lib/menu'
 
-const BISA_BUKA_SESI = ['BANIT', 'KASUBNIT']
+// Cuma BANIT yang membuka sesi_piket pribadi (kolom regu_id di tabel itu NOT
+// NULL, dan Kasubnit tidak dijadwalkan ke satu regu tunggal per Bagian 4).
+const BISA_BUKA_SESI = ['BANIT']
 
 function AntreanLuring() {
   const toast = useToast()
@@ -44,6 +47,24 @@ function AntreanLuring() {
   return null
 }
 
+// RLS di database sudah jadi pagar sebenarnya (Kelola Data cuma bisa diubah
+// ADMIN, Verifikasi cuma jalan untuk Kasubnit/Kanit, dst — lihat migrasi
+// RLS) — tapi tanpa pagar di level route ini, pengguna yang salah peran bisa
+// mengetik URL-nya langsung dan melihat halaman yang tombolnya semua gagal
+// tanpa penjelasan. Sumber "siapa boleh ke mana" sama persis dengan menu.js,
+// supaya tidak ada dua daftar yang bisa tidak sinkron.
+function RouteGuard({ profil, path, children }) {
+  const diizinkan = menuUntukPeran(profil.peran_sistem).some((m) => m.to === path)
+  if (!diizinkan) {
+    return (
+      <div className="rounded-2xl border border-line bg-white p-10 text-center text-ink-soft">
+        Halaman ini tidak tersedia untuk peran {profil.peran_sistem}.
+      </div>
+    )
+  }
+  return children
+}
+
 function AppRoutes() {
   const { session, profil, sedangMemuat } = useAuth()
 
@@ -62,7 +83,7 @@ function AppRoutes() {
     )
   }
 
-  const beranda = BISA_BUKA_SESI.includes(profil.peran_sistem) ? <Beranda /> : <Dashboard />
+  const beranda = BISA_BUKA_SESI.includes(profil.peran_sistem) ? <Beranda /> : <Navigate to="/dashboard" replace />
 
   return (
     <>
@@ -70,13 +91,13 @@ function AppRoutes() {
       <Routes>
         <Route element={<Layout profil={profil} />}>
           <Route path="/" element={beranda} />
-          <Route path="/lapor-kegiatan" element={<LaporKegiatan />} />
-          <Route path="/kejadian" element={<Kejadian />} />
-          <Route path="/verifikasi" element={<Verifikasi />} />
-          <Route path="/arsip" element={<Arsip />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/roster" element={<Roster />} />
-          <Route path="/kelola" element={<Kelola />} />
+          <Route path="/lapor-kegiatan" element={<RouteGuard profil={profil} path="/lapor-kegiatan"><LaporKegiatan /></RouteGuard>} />
+          <Route path="/kejadian" element={<RouteGuard profil={profil} path="/kejadian"><Kejadian /></RouteGuard>} />
+          <Route path="/verifikasi" element={<RouteGuard profil={profil} path="/verifikasi"><Verifikasi /></RouteGuard>} />
+          <Route path="/arsip" element={<RouteGuard profil={profil} path="/arsip"><Arsip /></RouteGuard>} />
+          <Route path="/dashboard" element={<RouteGuard profil={profil} path="/dashboard"><Dashboard /></RouteGuard>} />
+          <Route path="/roster" element={<RouteGuard profil={profil} path="/roster"><Roster /></RouteGuard>} />
+          <Route path="/kelola" element={<RouteGuard profil={profil} path="/kelola"><Kelola /></RouteGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -13,6 +13,7 @@ Stack: Vite + React 19 + Tailwind v4 + Supabase (Postgres, Auth, Storage) + `rea
    3. `20260826000002_triggers.sql`
    4. `20260826000003_storage.sql`
    5. `20260826000004_seed_referensi.sql`
+   6. `20260826000005_deteksi_sesi_lewat_18_jam.sql`
 3. Buka **Edge Functions** → **Deploy a new function** → beri nama `admin-kelola-akun` → tempel isi `supabase/functions/admin-kelola-akun/index.ts`. (Env `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` otomatis tersedia, tidak perlu diisi manual.)
 4. Buka **Authentication → Users → Add user**, buat akun bootstrap pertama secara manual:
    - Email: `nrp<NRP-admin-pertama>@epikpor.app` (contoh: NRP `99050655` → `nrp99050655@epikpor.app`)
@@ -25,6 +26,7 @@ Stack: Vite + React 19 + Tailwind v4 + Supabase (Postgres, Auth, Storage) + `rea
    ```
    Setelah ini, akun-akun lain (semua peran) dibuat lewat layar **Kelola Data** di aplikasi — tidak perlu lagi lewat dashboard.
 6. Buka **Project Settings → API**, catat **Project URL** dan **anon public key** untuk langkah 3.
+7. (Boleh menyusul, tidak wajib sebelum uji coba pertama) Jadwalkan penutupan otomatis sesi piket yang lewat 18 jam — lihat komentar di kepala file `20260826000005_deteksi_sesi_lewat_18_jam.sql` untuk dua cara (pg_cron atau Scheduled Trigger dashboard). Sebelum dijadwalkan, sesi yang lupa ditutup tidak akan otomatis masuk status pelanggaran.
 
 ## 2. Push ke GitHub
 

@@ -26,7 +26,6 @@ export default function Beranda() {
   useEffect(() => { muat() }, [profil.id])
 
   useEffect(() => {
-    if (profil.peran_sistem !== 'BANIT') return
     Promise.all([ambilLaporanKegiatanSaya(profil.id), ambilLaporanKejadianSaya(profil.id)]).then(([keg, kej]) => {
       const gab = [
         ...keg.map((k) => ({ ...k, tipe: 'Kegiatan', ringkasan: `${k.jenis_kegiatan?.nama} — ${k.lokasi}`, waktu: k.waktu_kirim })),
@@ -86,13 +85,7 @@ export default function Beranda() {
         </h1>
       </div>
 
-      {profil.peran_sistem !== 'BANIT' && !profil.zona_id ? (
-        <div className="rounded-2xl bg-navy-900 p-6 text-white">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-brass-soft">Sesi piket</div>
-          <div className="mt-2 font-display text-[20px] font-bold">Tidak ada sesi lapangan</div>
-          <div className="mt-1 text-[12px] text-white/65">Peran {profil.peran_sistem} tidak membuka sesi piket harian di aplikasi ini.</div>
-        </div>
-      ) : sesi ? (
+      {sesi ? (
         <div className="rounded-2xl bg-navy-900 p-6 text-white">
           <div className="flex items-center gap-2.5">
             <span className="relative flex h-3.5 w-3.5">
@@ -149,29 +142,27 @@ export default function Beranda() {
         </div>
       )}
 
-      {profil.peran_sistem === 'BANIT' && (
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded-[14px] border border-line bg-white p-5">
-            <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Aksi cepat</h3>
-            <div className="flex gap-2.5">
-              <button onClick={() => navigate('/lapor-kegiatan')} className="rounded-[10px] border border-line px-4.5 py-3 text-[13px] font-semibold text-ink-soft hover:border-ink-soft">+ Lapor Kegiatan</button>
-              <button onClick={() => navigate('/kejadian')} className="rounded-[10px] border border-line px-4.5 py-3 text-[13px] font-semibold text-ink-soft hover:border-ink-soft">+ Catat Kecelakaan</button>
-            </div>
-          </div>
-          <div className="rounded-[14px] border border-line bg-white p-5">
-            <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Laporan terbaru saya</h3>
-            {laporanTerbaru.length === 0 && <div className="p-4 text-center text-[13px] text-ink-soft">Belum ada laporan yang dikirim.</div>}
-            {laporanTerbaru.map((x) => (
-              <div key={x.tipe + x.id} className="flex items-center justify-between gap-2.5 border-b border-dashed border-paper-dim py-2 text-[12.5px] last:border-none">
-                <span>{x.ringkasan}</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${x.status === 'TERVERIFIKASI' ? 'bg-ok-bg text-ok' : 'bg-warn-bg text-warn'}`}>
-                  {x.status === 'TERVERIFIKASI' ? 'Terverifikasi' : 'Menunggu Verifikasi'}
-                </span>
-              </div>
-            ))}
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="rounded-[14px] border border-line bg-white p-5">
+          <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Aksi cepat</h3>
+          <div className="flex gap-2.5">
+            <button onClick={() => navigate('/lapor-kegiatan')} className="rounded-[10px] border border-line px-4.5 py-3 text-[13px] font-semibold text-ink-soft hover:border-ink-soft">+ Lapor Kegiatan</button>
+            <button onClick={() => navigate('/kejadian')} className="rounded-[10px] border border-line px-4.5 py-3 text-[13px] font-semibold text-ink-soft hover:border-ink-soft">+ Catat Kecelakaan</button>
           </div>
         </div>
-      )}
+        <div className="rounded-[14px] border border-line bg-white p-5">
+          <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Laporan terbaru saya</h3>
+          {laporanTerbaru.length === 0 && <div className="p-4 text-center text-[13px] text-ink-soft">Belum ada laporan yang dikirim.</div>}
+          {laporanTerbaru.map((x) => (
+            <div key={x.tipe + x.id} className="flex items-center justify-between gap-2.5 border-b border-dashed border-paper-dim py-2 text-[12.5px] last:border-none">
+              <span>{x.ringkasan}</span>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${x.status === 'TERVERIFIKASI' ? 'bg-ok-bg text-ok' : 'bg-warn-bg text-warn'}`}>
+                {x.status === 'TERVERIFIKASI' ? 'Terverifikasi' : 'Menunggu Verifikasi'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

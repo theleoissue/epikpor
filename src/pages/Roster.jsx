@@ -27,24 +27,36 @@ export default function Roster() {
   useEffect(() => { ambilZona().then(setZona); ambilRegu().then(setRegu); ambilPengguna().then(setPengguna) }, [])
 
   async function muatMinggu() {
-    const akhir = new Date(mulaiMinggu); akhir.setDate(akhir.getDate() + 6)
-    const data = await ambilRosterPeriode(mulaiMinggu.toISOString().slice(0, 10), akhir.toISOString().slice(0, 10))
-    setBaris(data)
+    try {
+      const akhir = new Date(mulaiMinggu); akhir.setDate(akhir.getDate() + 6)
+      const data = await ambilRosterPeriode(mulaiMinggu.toISOString().slice(0, 10), akhir.toISOString().slice(0, 10))
+      setBaris(data)
+    } catch (e) {
+      toast(e.message || 'Gagal memuat roster', true)
+    }
   }
   useEffect(() => { muatMinggu() }, [mulaiMinggu])
 
   async function simpan() {
     if (!form.tanggal || !form.zona_id || !form.regu_id) return toast('Lengkapi tanggal, zona, dan regu', true)
-    await simpanBarisRoster({ ...form, disusun_oleh: profil.id })
-    toast('Baris roster tersimpan')
-    setForm({ tanggal: '', mode_hari: 'HARI_KERJA', zona_id: '', regu_id: '', pengguna_ids: [] })
-    muatMinggu()
+    try {
+      await simpanBarisRoster({ ...form, disusun_oleh: profil.id })
+      toast('Baris roster tersimpan')
+      setForm({ tanggal: '', mode_hari: 'HARI_KERJA', zona_id: '', regu_id: '', pengguna_ids: [] })
+      muatMinggu()
+    } catch (e) {
+      toast(e.message || 'Gagal menyimpan baris roster', true)
+    }
   }
 
   async function salinMinggu() {
-    await salinRosterMingguSebelumnya(mulaiMinggu.toISOString().slice(0, 10), profil.id)
-    toast('Roster minggu lalu disalin, silakan sunting seperlunya')
-    muatMinggu()
+    try {
+      await salinRosterMingguSebelumnya(mulaiMinggu.toISOString().slice(0, 10), profil.id)
+      toast('Roster minggu lalu disalin, silakan sunting seperlunya')
+      muatMinggu()
+    } catch (e) {
+      toast(e.message || 'Gagal menyalin roster', true)
+    }
   }
 
   return (

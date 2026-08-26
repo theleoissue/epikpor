@@ -63,9 +63,12 @@ create table public.pengguna (
   created_at timestamptz not null default now()
 );
 
--- Zona menunjuk kasubnit-nya lewat kolom ini (boleh null — merepresentasikan
--- Zona Tengah yang penanggung jawabnya belum ditetapkan, Dokumen Teknis Bagian 15).
-alter table public.zona add column kasubnit_id uuid references public.pengguna(id);
+-- Catatan: siapa Kasubnit suatu zona sengaja TIDAK disimpan sebagai kolom
+-- terpisah di sini (akan jadi sumber kebenaran ganda yang gampang tidak
+-- sinkron). Kasubnit suatu zona adalah pengguna dengan peran_sistem='KASUBNIT'
+-- dan zona_id yang sama — itulah juga yang dipakai RLS (zona_saya()). Zona
+-- Tengah boleh untuk sementara tidak punya pengguna berperan KASUBNIT sama
+-- sekali (Dokumen Teknis Bagian 15), dan itu terlihat langsung dari situ.
 
 create table public.jenis_kegiatan (
   id uuid primary key default gen_random_uuid(),

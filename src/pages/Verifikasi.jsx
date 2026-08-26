@@ -17,23 +17,38 @@ export default function Verifikasi() {
   const [catatan, setCatatan] = useState({})
 
   async function muat() {
-    setKegiatan(await ambilLaporanKegiatanMenunggu())
-    setKejadian(await ambilLaporanKejadianMenunggu())
-    setSesi(await ambilSesiButuhTindakan())
+    try {
+      setKegiatan(await ambilLaporanKegiatanMenunggu())
+      setKejadian(await ambilLaporanKejadianMenunggu())
+      setSesi(await ambilSesiButuhTindakan())
+    } catch (e) {
+      toast(e.message || 'Gagal memuat data verifikasi', true)
+    }
   }
   useEffect(() => { muat() }, [])
 
   async function verifKegiatan(id) {
-    await verifikasiLaporanKegiatan(id); toast('Laporan diverifikasi'); muat()
+    try { await verifikasiLaporanKegiatan(id); toast('Laporan diverifikasi'); muat() }
+    catch (e) { toast(e.message || 'Gagal memverifikasi laporan', true) }
   }
   async function verifKejadian(id) {
-    await verifikasiLaporanKejadian(id); toast('Laporan diverifikasi'); muat()
+    try { await verifikasiLaporanKejadian(id); toast('Laporan diverifikasi'); muat() }
+    catch (e) { toast(e.message || 'Gagal memverifikasi laporan', true) }
   }
 
   async function salinLaporanWA(id) {
-    const lengkap = await ambilSatuKejadian(id)
-    await navigator.clipboard.writeText(buildLaporanKejadianWA(lengkap))
-    toast('Teks laporan WhatsApp disalin, siap ditempel')
+    try {
+      const lengkap = await ambilSatuKejadian(id)
+      await navigator.clipboard.writeText(buildLaporanKejadianWA(lengkap))
+      toast('Teks laporan WhatsApp disalin, siap ditempel')
+    } catch (e) {
+      toast(e.message || 'Gagal menyalin teks laporan', true)
+    }
+  }
+
+  async function tindakSesi(fn, pesan) {
+    try { await fn(); toast(pesan); muat() }
+    catch (e) { toast(e.message || 'Gagal memproses sesi', true) }
   }
 
   return (
@@ -81,10 +96,10 @@ export default function Verifikasi() {
               )}
               <div className="flex gap-2">
                 {s.status === 'MENUNGGU_VERIFIKASI' && (
-                  <button onClick={async () => { await verifikasiSesi(s.id); toast('Sesi diverifikasi'); muat() }} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white">✓ Verifikasi</button>
+                  <button onClick={() => tindakSesi(() => verifikasiSesi(s.id), 'Sesi diverifikasi')} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white">✓ Verifikasi</button>
                 )}
                 {s.status.startsWith('PELANGGARAN') && (
-                  <button onClick={async () => { await kecualikanSesi(s.id, catatan[s.id] || ''); toast('Sesi dikecualikan'); muat() }} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Simpan catatan &amp; kecualikan</button>
+                  <button onClick={() => tindakSesi(() => kecualikanSesi(s.id, catatan[s.id] || ''), 'Sesi dikecualikan')} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Simpan catatan &amp; kecualikan</button>
                 )}
               </div>
             </div>

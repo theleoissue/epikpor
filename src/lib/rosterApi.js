@@ -31,7 +31,8 @@ export async function simpanBarisRoster({ tanggal, mode_hari, zona_id, regu_id, 
     .single()
   if (error) throw error
 
-  await supabase.from('roster_personel').delete().eq('roster_piket_id', baris.id)
+  const { error: errHapus } = await supabase.from('roster_personel').delete().eq('roster_piket_id', baris.id)
+  if (errHapus) throw errHapus
   if (pengguna_ids?.length) {
     const { error: err2 } = await supabase
       .from('roster_personel')

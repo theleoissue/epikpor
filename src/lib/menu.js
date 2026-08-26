@@ -13,7 +13,6 @@ export function menuUntukPeran(peran) {
       ]
     case 'KASUBNIT':
       return [
-        { to: '/', label: 'Beranda' },
         { to: '/dashboard', label: 'Papan Pemantauan' },
         { to: '/verifikasi', label: 'Verifikasi', badge: 'verifikasi' },
         { to: '/arsip', label: 'Arsip Zona' },

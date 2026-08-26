@@ -21,8 +21,10 @@ export async function bukaSesi({ pengguna_id, zona_id, regu_id, foto_swafoto_pat
   return data
 }
 
+// Hasil update dicek eksplisit (bukan cuma error-nya) karena RLS yang
+// memblokir update tidak melempar error — cuma 0 baris terdampak diam-diam.
 export async function tutupSesi(id, { foto_serah_terima_path }) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('sesi_piket')
     .update({
       waktu_tutup: new Date().toISOString(),
@@ -31,7 +33,10 @@ export async function tutupSesi(id, { foto_serah_terima_path }) {
       status: 'MENUNGGU_VERIFIKASI',
     })
     .eq('id', id)
+    .select()
+    .maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Sesi tidak ditemukan atau bukan milik Anda.')
 }
 
 export async function ambilSesiButuhTindakan() {
@@ -45,13 +50,15 @@ export async function ambilSesiButuhTindakan() {
 }
 
 export async function verifikasiSesi(id) {
-  const { error } = await supabase.from('sesi_piket').update({ status: 'TERTUTUP' }).eq('id', id)
+  const { data, error } = await supabase.from('sesi_piket').update({ status: 'TERTUTUP' }).eq('id', id).select().maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Sesi tidak ditemukan atau Anda tidak berhak memverifikasinya.')
 }
 
 export async function kecualikanSesi(id, catatan_kanit) {
-  const { error } = await supabase.from('sesi_piket').update({ status: 'DIKECUALIKAN', catatan_kanit }).eq('id', id)
+  const { data, error } = await supabase.from('sesi_piket').update({ status: 'DIKECUALIKAN', catatan_kanit }).eq('id', id).select().maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Sesi tidak ditemukan atau Anda tidak berhak mengubahnya.')
 }
 
 export async function ambilArsipSesi({ zona_id } = {}) {

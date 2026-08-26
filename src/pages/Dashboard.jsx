@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { ambilZona } from '../lib/referensiApi'
 import { ambilJadwalHariIni } from '../lib/rosterApi'
 import { rekapBulanan } from '../lib/laporanKejadianApi'
-import { SASARAN_WAKTU_TANGGAP } from '../lib/format'
+import { SASARAN_WAKTU_TANGGAP, bulanJakarta } from '../lib/format'
 
 const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -16,14 +16,17 @@ export default function Dashboard() {
     async function muat() {
       const zonaList = await ambilZona()
       const kartu = await Promise.all(zonaList.map(async (z) => {
-        const [{ count: aktif }, { count: menungguKeg }, { count: menungguKej }, jadwal] = await Promise.all([
+        const [{ count: aktif }, { count: menungguKeg }, { count: menungguKej }, { count: adaKasubnit }, jadwal] = await Promise.all([
           supabase.from('sesi_piket').select('id', { count: 'exact', head: true }).eq('zona_id', z.id).eq('status', 'AKTIF'),
           supabase.from('laporan_kegiatan').select('id', { count: 'exact', head: true }).eq('zona_id', z.id),
           supabase.from('laporan_kejadian').select('id', { count: 'exact', head: true }).eq('zona_id', z.id),
+          // Kasubnit suatu zona = pengguna aktif berperan KASUBNIT dengan zona_id ini —
+          // bukan kolom terpisah, supaya tidak ada dua sumber kebenaran yang bisa tidak sinkron.
+          supabase.from('pengguna').select('id', { count: 'exact', head: true }).eq('zona_id', z.id).eq('peran_sistem', 'KASUBNIT').eq('status_aktif', true),
           ambilJadwalHariIni(z.id),
         ])
         const dijadwalkan = new Set(jadwal.flatMap((j) => (j.personel || []).map((p) => p.pengguna?.id)))
-        return { ...z, aktif, menungguKeg, menungguKej, dijadwalkanCount: dijadwalkan.size }
+        return { ...z, aktif, menungguKeg, menungguKej, adaKasubnit, dijadwalkanCount: dijadwalkan.size }
       }))
       setZonaCards(kartu)
 
@@ -45,9 +48,10 @@ export default function Dashboard() {
         menunggu: total - verified,
       })
 
-      const dataKejadian = await rekapBulanan(new Date().getFullYear())
+      const tahunIni = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', year: 'numeric' }).format(new Date()))
+      const dataKejadian = await rekapBulanan(tahunIni)
       const perBulan = Array.from({ length: 12 }, (_, i) => {
-        const rows = dataKejadian.filter((r) => new Date(r.created_at).getMonth() === i)
+        const rows = dataKejadian.filter((r) => bulanJakarta(r.created_at) === i)
         const rentangLewat = (a, b, batas) => rows.filter((r) => r[a] && r[b] && (new Date(r[b]) - new Date(r[a])) / 1000 > batas).length
         return {
           bulan: NAMA_BULAN[i], jumlah: rows.length,
@@ -78,7 +82,7 @@ export default function Dashboard() {
               <div className="mb-3 flex items-start justify-between">
                 <div>
                   <div className="font-display text-[15px] font-bold">Zona {z.nama}</div>
-                  <div className="text-[11px] text-ink-soft">{z.kasubnit_id ? 'Kasubnit ditetapkan' : 'Kasubnit belum ditetapkan RAP'}</div>
+                  <div className="text-[11px] text-ink-soft">{z.adaKasubnit ? 'Kasubnit ditetapkan' : 'Kasubnit belum ditetapkan'}</div>
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${kurang ? 'bg-warn-bg text-warn' : z.aktif > 0 ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>
                   {kurang ? `Kurang ${z.dijadwalkanCount - z.aktif} personel` : z.aktif > 0 ? 'Piket aktif' : 'Tidak ada sesi aktif'}

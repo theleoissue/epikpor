@@ -154,10 +154,16 @@ export default function Kejadian() {
       }
       toast('Laporan kejadian kecelakaan terkirim')
       resetForm(); navigate('/')
-    } catch {
-      await tambahAntrean({ tipe: 'kejadian', payload: bangunPayload(null), orang, kendaraan, fotoFiles: foto })
-      toast('Gagal terkirim, disimpan di perangkat untuk dicoba lagi', true)
-      resetForm(); navigate('/')
+    } catch (e) {
+      // Sama seperti LaporKegiatan: cuma diantrekan kalau sinyal memang hilang,
+      // supaya galat yang bukan soal sinyal tidak terjebak diam-diam di antrean.
+      if (!navigator.onLine) {
+        await tambahAntrean({ tipe: 'kejadian', payload: bangunPayload(null), orang, kendaraan, fotoFiles: foto })
+        toast('Sinyal terputus saat mengirim — laporan tersimpan di perangkat, akan dicoba lagi otomatis')
+        resetForm(); navigate('/')
+      } else {
+        toast(e.message || 'Gagal mengirim laporan kejadian', true)
+      }
     } finally {
       setMengirim(false)
     }

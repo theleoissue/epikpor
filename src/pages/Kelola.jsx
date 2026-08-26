@@ -42,11 +42,23 @@ function TabPersonel() {
   const [form, setForm] = useState({ nama: '', nrp: '', pangkat: '', gelar: '', peran_sistem: 'BANIT', zona_id: '', regu_id: '', password: '' })
   const [memproses, setMemproses] = useState(false)
 
-  async function muat() { setDaftar(await ambilPengguna()) }
+  async function muat() {
+    try { setDaftar(await ambilPengguna()) }
+    catch (e) { toast(e.message || 'Gagal memuat daftar personel', true) }
+  }
   useEffect(() => { muat(); ambilZona().then(setZona); ambilRegu().then(setRegu) }, [])
 
   async function tambahAkun() {
     if (!form.nama || !form.nrp || !form.password) return toast('Lengkapi nama, NRP, dan kata sandi awal', true)
+    // Banit & Kasubnit wajib punya zona (RLS dan pembatasan baris data bergantung
+    // padanya); Banit tambahan wajib punya regu (kolom regu_id NOT NULL di
+    // sesi_piket/laporan_kegiatan/laporan_kejadian).
+    if ((form.peran_sistem === 'BANIT' || form.peran_sistem === 'KASUBNIT') && !form.zona_id) {
+      return toast('Personel dengan peran Banit atau Kasubnit wajib diberi zona', true)
+    }
+    if (form.peran_sistem === 'BANIT' && !form.regu_id) {
+      return toast('Personel dengan peran Banit wajib diberi regu', true)
+    }
     setMemproses(true)
     try {
       await buatAkunPengguna(form)
@@ -57,9 +69,13 @@ function TabPersonel() {
   }
 
   async function toggleAktif(p) {
-    await perbaruiPengguna(p.id, { status_aktif: !p.status_aktif })
-    toast(p.status_aktif ? `${p.nama} dinonaktifkan` : `${p.nama} diaktifkan kembali`)
-    muat()
+    try {
+      await perbaruiPengguna(p.id, { status_aktif: !p.status_aktif })
+      toast(p.status_aktif ? `${p.nama} dinonaktifkan` : `${p.nama} diaktifkan kembali`)
+      muat()
+    } catch (e) {
+      toast(e.message || 'Gagal mengubah status akun', true)
+    }
   }
 
   async function resetSandi(p) {
@@ -85,12 +101,12 @@ function TabPersonel() {
           </select>
           {perluZona && (
             <select value={form.zona_id} onChange={(e) => setForm((f) => ({ ...f, zona_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
-              <option value="">— Tanpa zona —</option>{zona.map((z) => <option key={z.id} value={z.id}>{z.nama}</option>)}
+              <option value="">Zona (wajib) —</option>{zona.map((z) => <option key={z.id} value={z.id}>{z.nama}</option>)}
             </select>
           )}
           {perluRegu && (
             <select value={form.regu_id} onChange={(e) => setForm((f) => ({ ...f, regu_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
-              <option value="">— Tanpa regu —</option>{regu.map((r) => <option key={r.id} value={r.id}>Regu {r.nomor}</option>)}
+              <option value="">Regu (wajib) —</option>{regu.map((r) => <option key={r.id} value={r.id}>Regu {r.nomor}</option>)}
             </select>
           )}
           <input type="password" placeholder="Kata sandi awal" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
@@ -126,11 +142,22 @@ function TabDaftar({ label, ambil, tambah, nonaktifkan }) {
   const toast = useToast()
   const [daftar, setDaftar] = useState([])
   const [baru, setBaru] = useState('')
-  async function muat() { setDaftar(await ambil()) }
+  async function muat() {
+    try { setDaftar(await ambil()) }
+    catch (e) { toast(e.message || `Gagal memuat daftar ${label}`, true) }
+  }
   useEffect(() => { muat() }, [])
   async function tambahBaris() {
     if (!baru.trim()) return toast(`Tulis nama ${label} terlebih dahulu`, true)
-    await tambah(baru.trim()); setBaru(''); toast(`${label} ditambahkan`); muat()
+    try {
+      await tambah(baru.trim()); setBaru(''); toast(`${label} ditambahkan`); muat()
+    } catch (e) {
+      toast(e.message || `Gagal menambah ${label}`, true)
+    }
+  }
+  async function nonaktifkanBaris(id) {
+    try { await nonaktifkan(id); muat() }
+    catch (e) { toast(e.message || `Gagal menonaktifkan ${label}`, true) }
   }
   return (
     <div className="rounded-2xl border border-line bg-white p-5">
@@ -142,7 +169,7 @@ function TabDaftar({ label, ambil, tambah, nonaktifkan }) {
       {daftar.map((d) => (
         <div key={d.id} className="mb-1.5 flex items-center justify-between rounded-lg border border-line px-3 py-2 text-[12.5px]">
           <span>{d.nama}</span>
-          <button onClick={async () => { await nonaktifkan(d.id); muat() }} className="rounded-lg bg-bad-bg px-2 py-1 text-[11px] text-bad">Nonaktifkan</button>
+          <button onClick={() => nonaktifkanBaris(d.id)} className="rounded-lg bg-bad-bg px-2 py-1 text-[11px] text-bad">Nonaktifkan</button>
         </div>
       ))}
     </div>

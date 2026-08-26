@@ -62,14 +62,19 @@ create policy "RLS-04 sesi_piket: baca" on public.sesi_piket for select using (
   or (public.peran_saya() = 'KASUBNIT' and zona_id = public.zona_saya())
   or public.peran_saya() in ('KANIT_GAKKUM', 'KASAT_LANTAS', 'WAKASAT_LANTAS', 'KAUR_BIN_OPS')
 );
--- Insert: Banit/Kasubnit membuka sesi atas nama sendiri.
+-- Insert: Banit membuka sesi atas nama sendiri. Dibatasi ke BANIT saja karena
+-- sesi_piket.regu_id NOT NULL — Kasubnit tidak punya regu tunggal untuk diisi
+-- di sini (perannya mengawasi regu di zonanya, bukan check-in personal).
 create policy "RLS-04 sesi_piket: buka sesi sendiri" on public.sesi_piket for insert with check (
-  pengguna_id = auth.uid() and public.peran_saya() in ('BANIT', 'KASUBNIT')
+  pengguna_id = auth.uid() and public.peran_saya() = 'BANIT'
 );
 -- Update: pemilik menutup sesi sendiri; Kasubnit zonanya & Kanit boleh verifikasi/kecualikan.
+-- WITH CHECK membatasi pemilik cuma boleh membawa status ke MENUNGGU_VERIFIKASI
+-- (menutup), bukan langsung ke TERTUTUP/DIKECUALIKAN — kedua status itu cuma
+-- tercapai lewat policy verifikasi Kasubnit/Kanit di bawah.
 create policy "RLS-04 sesi_piket: tutup sendiri" on public.sesi_piket for update using (
   pengguna_id = auth.uid()
-) with check (pengguna_id = auth.uid());
+) with check (pengguna_id = auth.uid() and status in ('AKTIF', 'MENUNGGU_VERIFIKASI'));
 create policy "RLS-04 sesi_piket: verifikasi kasubnit" on public.sesi_piket for update using (
   public.peran_saya() = 'KASUBNIT' and zona_id = public.zona_saya()
 ) with check (public.peran_saya() = 'KASUBNIT' and zona_id = public.zona_saya());
@@ -88,11 +93,18 @@ create policy "RLS-05 laporan_kegiatan: baca" on public.laporan_kegiatan for sel
 create policy "RLS-05 laporan_kegiatan: lapor" on public.laporan_kegiatan for insert with check (
   pelapor_id = auth.uid() and public.peran_saya() = 'BANIT'
 );
--- Pelapor boleh edit laporannya sendiri (isi/lampiran); status verifikasi
--- otomatis di-reset oleh trigger BR-EDIT-RESET, bukan diatur di sini.
+-- Pelapor boleh edit laporannya sendiri (isi/lampiran). WITH CHECK sengaja
+-- menolak status selain MENUNGGU_VERIFIKASI dan menolak diverifikasi_oleh/pada
+-- terisi, supaya pelapor tidak bisa mem-verifikasi laporannya sendiri lewat
+-- update langsung — trigger reset_status_kegiatan_saat_edit (lihat migrasi
+-- triggers) sudah menormalkan kedua kolom ini SEBELUM check ini dievaluasi,
+-- jadi alur "edit laporan yang sudah terverifikasi" tetap lolos.
 create policy "RLS-05 laporan_kegiatan: edit sendiri" on public.laporan_kegiatan for update using (
   pelapor_id = auth.uid()
-) with check (pelapor_id = auth.uid());
+) with check (
+  pelapor_id = auth.uid() and status = 'MENUNGGU_VERIFIKASI'
+  and diverifikasi_oleh is null and diverifikasi_pada is null
+);
 -- Verifikasi: Kasubnit zonanya sendiri, Kanit semua zona.
 create policy "RLS-05 laporan_kegiatan: verifikasi kasubnit" on public.laporan_kegiatan for update using (
   public.peran_saya() = 'KASUBNIT' and zona_id = public.zona_saya()
@@ -104,11 +116,13 @@ create policy "RLS-05 laporan_kegiatan: verifikasi kanit" on public.laporan_kegi
 create policy "RLS-05b lampiran_kegiatan: ikut laporan" on public.lampiran_kegiatan for select using (
   exists (select 1 from public.laporan_kegiatan l where l.id = laporan_kegiatan_id)
 );
+-- Dibatasi ke laporan yang masih MENUNGGU_VERIFIKASI, supaya lampiran laporan
+-- yang sudah diverifikasi tidak bisa diam-diam ditambah/dihapus pelapor.
 create policy "RLS-05b lampiran_kegiatan: insert oleh pelapor" on public.lampiran_kegiatan for insert with check (
-  exists (select 1 from public.laporan_kegiatan l where l.id = laporan_kegiatan_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kegiatan l where l.id = laporan_kegiatan_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 );
 create policy "RLS-05b lampiran_kegiatan: hapus oleh pelapor" on public.lampiran_kegiatan for delete using (
-  exists (select 1 from public.laporan_kegiatan l where l.id = laporan_kegiatan_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kegiatan l where l.id = laporan_kegiatan_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 );
 
 -- ---------- RLS-06: laporan_kejadian (+ anak tabelnya) ----------
@@ -120,41 +134,56 @@ create policy "RLS-06 laporan_kejadian: baca" on public.laporan_kejadian for sel
 create policy "RLS-06 laporan_kejadian: lapor" on public.laporan_kejadian for insert with check (
   pelapor_id = auth.uid() and public.peran_saya() = 'BANIT'
 );
+-- Sama seperti RLS-05 laporan_kegiatan: WITH CHECK menolak pelapor
+-- mem-verifikasi laporannya sendiri lewat update langsung.
 create policy "RLS-06 laporan_kejadian: edit sendiri" on public.laporan_kejadian for update using (
   pelapor_id = auth.uid()
-) with check (pelapor_id = auth.uid());
+) with check (
+  pelapor_id = auth.uid() and status = 'MENUNGGU_VERIFIKASI'
+  and diverifikasi_oleh is null and diverifikasi_pada is null
+);
 create policy "RLS-06 laporan_kejadian: verifikasi kasubnit" on public.laporan_kejadian for update using (
   public.peran_saya() = 'KASUBNIT' and zona_id = public.zona_saya()
 ) with check (public.peran_saya() = 'KASUBNIT' and zona_id = public.zona_saya());
 create policy "RLS-06 laporan_kejadian: verifikasi kanit" on public.laporan_kejadian for update using (
   public.peran_saya() = 'KANIT_GAKKUM'
 ) with check (public.peran_saya() = 'KANIT_GAKKUM');
+-- Dibutuhkan supaya kirimLaporanKejadian() bisa membatalkan (rollback manual)
+-- laporan yang baru dibuat kalau insert kendaraan/orang di langkah berikutnya
+-- gagal — dibatasi ke laporan milik sendiri yang masih MENUNGGU_VERIFIKASI,
+-- jadi laporan yang sudah pernah dilihat/diverifikasi tidak pernah bisa dihapus.
+create policy "RLS-06 laporan_kejadian: hapus draf sendiri" on public.laporan_kejadian for delete using (
+  pelapor_id = auth.uid() and status = 'MENUNGGU_VERIFIKASI'
+);
 
 create policy "RLS-06b kejadian_orang: ikut laporan" on public.kejadian_orang for select using (
   exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id)
 );
+-- Dibatasi ke laporan yang masih MENUNGGU_VERIFIKASI di USING juga (bukan cuma
+-- WITH CHECK), supaya DELETE pun ikut terblokir setelah laporan diverifikasi
+-- (DELETE tidak mengevaluasi WITH CHECK karena tidak ada baris baru).
 create policy "RLS-06b kejadian_orang: kelola oleh pelapor" on public.kejadian_orang for all using (
-  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 ) with check (
-  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 );
 
 create policy "RLS-06c kejadian_kendaraan: ikut laporan" on public.kejadian_kendaraan for select using (
   exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id)
 );
 create policy "RLS-06c kejadian_kendaraan: kelola oleh pelapor" on public.kejadian_kendaraan for all using (
-  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 ) with check (
-  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 );
 
 create policy "RLS-06d lampiran_kejadian: ikut laporan" on public.lampiran_kejadian for select using (
   exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id)
 );
 create policy "RLS-06d lampiran_kejadian: kelola oleh pelapor" on public.lampiran_kejadian for all using (
-  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 ) with check (
-  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid())
+  exists (select 1 from public.laporan_kejadian l where l.id = laporan_kejadian_id and l.pelapor_id = auth.uid() and l.status = 'MENUNGGU_VERIFIKASI')
 );
 
 -- ---------- RLS-07: komentar ----------

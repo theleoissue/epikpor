@@ -4,10 +4,12 @@ import { cariArsipKejadian } from '../lib/laporanKejadianApi'
 import { ambilArsipSesi } from '../lib/sesiPiketApi'
 import { ambilZona, ambilRegu, ambilJenisKegiatan, ambilJenisKecelakaan } from '../lib/referensiApi'
 import { fmtTime, fmtDate } from '../lib/format'
+import { useToast } from '../components/Toast'
 
 const TABS = [['kegiatan', 'Laporan Kegiatan'], ['kejadian', 'Kejadian Kecelakaan'], ['sesi', 'Sesi Piket']]
 
 export default function Arsip() {
+  const toast = useToast()
   const [tab, setTab] = useState('kegiatan')
   const [zona, setZona] = useState([])
   const [regu, setRegu] = useState([])
@@ -22,15 +24,19 @@ export default function Arsip() {
   }, [])
 
   async function cari() {
-    if (tab === 'kegiatan') {
-      const data = await cariArsipKegiatan(filter)
-      setHasil(data.map((x) => ({ id: x.id, waktu: x.waktu_kirim, ringkasan: `${x.jenis_kegiatan?.nama} — ${x.lokasi}`, zona: x.zona?.nama, regu: x.regu?.nomor, pelapor: x.pelapor_nama, status: x.status })))
-    } else if (tab === 'kejadian') {
-      const data = await cariArsipKejadian(filter)
-      setHasil(data.map((x) => ({ id: x.id, waktu: x.created_at, ringkasan: `${x.jenis_kecelakaan?.nama || 'Kejadian'} — ${x.lokasi}`, zona: x.zona?.nama, regu: x.regu?.nomor, pelapor: x.pelapor_nama, status: x.status })))
-    } else {
-      const data = await ambilArsipSesi({ zona_id: filter.zona_id || undefined })
-      setHasil(data.map((s) => ({ id: s.id, waktu: s.waktu_buka, ringkasan: `${s.pengguna?.nama}`, zona: s.zona?.nama, regu: s.regu?.nomor, pelapor: '-', status: s.status })))
+    try {
+      if (tab === 'kegiatan') {
+        const data = await cariArsipKegiatan(filter)
+        setHasil(data.map((x) => ({ id: x.id, waktu: x.waktu_kirim, ringkasan: `${x.jenis_kegiatan?.nama} — ${x.lokasi}`, zona: x.zona?.nama, regu: x.regu?.nomor, pelapor: x.pelapor_nama, status: x.status })))
+      } else if (tab === 'kejadian') {
+        const data = await cariArsipKejadian(filter)
+        setHasil(data.map((x) => ({ id: x.id, waktu: x.created_at, ringkasan: `${x.jenis_kecelakaan?.nama || 'Kejadian'} — ${x.lokasi}`, zona: x.zona?.nama, regu: x.regu?.nomor, pelapor: x.pelapor_nama, status: x.status })))
+      } else {
+        const data = await ambilArsipSesi({ zona_id: filter.zona_id || undefined })
+        setHasil(data.map((s) => ({ id: s.id, waktu: s.waktu_buka, ringkasan: `${s.pengguna?.nama}`, zona: s.zona?.nama, regu: s.regu?.nomor, pelapor: '-', status: s.status })))
+      }
+    } catch (e) {
+      toast(e.message || 'Gagal mengambil data arsip', true)
     }
   }
   useEffect(() => { cari() }, [tab])

@@ -70,11 +70,19 @@ export default function LaporKegiatan() {
       toast(`Laporan kegiatan terkirim · lama pengisian ${Math.floor(lamaDetik / 60)}m ${lamaDetik % 60}d`)
       resetForm()
       navigate('/')
-    } catch {
-      await tambahAntrean({ tipe: 'kegiatan', payload: dataInti, fotoFiles: foto })
-      toast('Gagal terkirim, disimpan di perangkat untuk dicoba lagi', true)
-      resetForm()
-      navigate('/')
+    } catch (e) {
+      // Cuma diantrekan kalau memang sinyal hilang di tengah proses kirim.
+      // Kalau sinyal masih ada tapi tetap gagal (mis. ditolak server), itu
+      // kemungkinan besar galat yang akan gagal lagi berulang-ulang kalau
+      // diam-diam diantrekan — jadi tampilkan errornya langsung ke pengguna.
+      if (!navigator.onLine) {
+        await tambahAntrean({ tipe: 'kegiatan', payload: dataInti, fotoFiles: foto })
+        toast('Sinyal terputus saat mengirim — laporan tersimpan di perangkat, akan dicoba lagi otomatis')
+        resetForm()
+        navigate('/')
+      } else {
+        toast(e.message || 'Gagal mengirim laporan', true)
+      }
     } finally {
       setMengirim(false)
     }
