@@ -78,10 +78,22 @@ function TabPersonel() {
     }
   }
 
-  async function resetSandi(p) {
-    const baru = prompt(`Kata sandi baru untuk ${p.nama}:`)
-    if (!baru) return
-    try { await resetPasswordPengguna(p.id, baru); toast('Kata sandi diperbarui') } catch (e) { toast(e.message, true) }
+  const [resetTarget, setResetTarget] = useState(null)
+  const [sandiBaru, setSandiBaru] = useState('')
+  const [memprosesReset, setMemprosesReset] = useState(false)
+
+  async function simpanResetSandi() {
+    if (!sandiBaru.trim()) return toast('Isi kata sandi baru terlebih dahulu', true)
+    setMemprosesReset(true)
+    try {
+      await resetPasswordPengguna(resetTarget.id, sandiBaru.trim())
+      toast(`Kata sandi ${resetTarget.nama} diperbarui`)
+      setResetTarget(null); setSandiBaru('')
+    } catch (e) {
+      toast(e.message, true)
+    } finally {
+      setMemprosesReset(false)
+    }
   }
 
   const perluZona = form.peran_sistem === 'BANIT' || form.peran_sistem === 'KASUBNIT'
@@ -127,13 +139,35 @@ function TabPersonel() {
                 <td className="px-3.5 py-2.5"><span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${p.status_aktif ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>{p.status_aktif ? 'Aktif' : 'Nonaktif'}</span></td>
                 <td className="whitespace-nowrap px-3.5 py-2.5">
                   <button onClick={() => toggleAktif(p)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">{p.status_aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                  <button onClick={() => resetSandi(p)} className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Reset Sandi</button>
+                  <button onClick={() => { setResetTarget(p); setSandiBaru('') }} className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Reset Sandi</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setResetTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-paper p-5 shadow-2xl">
+            <h3 className="mb-1 font-display text-[15px] font-semibold">Reset Kata Sandi</h3>
+            <p className="mb-3 text-[12.5px] text-ink-soft">Untuk {resetTarget.nama} (NRP {resetTarget.nrp})</p>
+            <input
+              type="password"
+              autoFocus
+              value={sandiBaru}
+              onChange={(e) => setSandiBaru(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && simpanResetSandi()}
+              placeholder="Kata sandi baru"
+              className="mb-3 w-full rounded-lg border border-line px-3 py-2 text-[12.5px]"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setResetTarget(null)} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Batal</button>
+              <button onClick={simpanResetSandi} disabled={memprosesReset} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white disabled:opacity-50">Simpan</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

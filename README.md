@@ -54,12 +54,14 @@ npm run dev
 
 Semua peran dari Bagian 4 (Kasat Lantas, Wakasat Lantas, Kanit Gakkum, Kaur Bin Ops, Kasubnit, Banit, Administrator) sudah punya menu masing-masing — lihat `src/lib/menu.js`. Perbaikan hak akses dibanding mockup: **Kasubnit bisa memverifikasi laporan zonanya sendiri**, **Administrator tidak bisa memverifikasi laporan** (cuma kelola data induk).
 
-Modul yang sebelumnya tidak ada di mockup dan sudah dibangun di sini: **Roster Piket** (`/roster`), **notifikasi otomatis** ke Kasubnit & Kanit saat kejadian dilaporkan (trigger database, bukan kode klien), **antrean luring** (`src/lib/offlineQueue.js`, IndexedDB), **rekap bulanan yang dihitung dari data asli** (Papan Pemantauan), **pencarian arsip 7 kriteria**, dan **PWA installable**.
+Modul yang sebelumnya tidak ada di mockup dan sudah dibangun di sini: **Roster Piket** (`/roster`), **notifikasi otomatis** ke Kasubnit & Kanit saat kejadian dilaporkan (trigger database, bukan kode klien), **antrean luring** (`src/lib/offlineQueue.js`, IndexedDB), **rekap bulanan yang dihitung dari data asli** (Papan Pemantauan), **pencarian arsip 7 kriteria**, **PWA installable** (ikon sudah ada di `public/icons/`), dan **galeri foto + komentar** di halaman Verifikasi & Arsip lewat `DetailModal` (`src/components/DetailModal.jsx`) yang mengambil foto dari Storage lewat signed URL.
 
-### Belum diporting dari diskusi mockup (sengaja ditunda)
+### Belum diporting / belum ada mekanismenya (sengaja ditunda)
 
-Dua fitur ekspor yang murni dekoratif belum dibuat di versi ini, supaya fokus dulu ke alur data & keamanan:
-- **Kolase foto TKP** (gambar gabungan 4 foto ala mockup) — belum ada.
-- Generator **teks laporan WhatsApp** untuk kejadian kecelakaan sudah ada (`src/lib/waReport.js`, tombol "💬 Laporan WA" di halaman Verifikasi), tapi belum di halaman Arsip.
+- **Kolase foto TKP** (gambar gabungan 4 foto ala mockup, murni dekoratif) — belum ada.
+- **Edit lengkap Kejadian Kecelakaan** (ubah kembali orang/kendaraan/faktor penyebab setelah terkirim) — `DetailModal` cuma bisa mengedit lokasi & keterangan Laporan Kegiatan; API `gantiOrangDanKendaraan` sudah ada di `laporanKejadianApi.js` tapi belum ada form yang memakainya.
+- **Penyuntingan manual satu stempel waktu** (kalau telat mengetuk) — cuma bisa ketuk-batal-ketuk ulang, belum ada input jam manual.
+- **Deteksi "dijadwalkan tapi tidak buka sesi"** (status `PELANGGARAN_TIDAK_BUKA`) — belum ada mekanismenya sama sekali, beda dengan auto-tutup 18 jam yang fungsinya sudah ada (lihat langkah 1.7).
+- **Notifikasi pra-piket** ("personel menerima pemberitahuan sebelum jam piket dimulai", Bagian 5.8) — perlu scheduled job yang membandingkan roster dengan jam sekarang, belum dibangun.
 
-Keduanya aman ditambahkan belakangan tanpa mengubah skema database.
+Semuanya aman ditambahkan belakangan tanpa mengubah skema database yang sudah ada.

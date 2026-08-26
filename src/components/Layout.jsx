@@ -1,14 +1,41 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import NotifBell from './NotifBell'
 import { menuUntukPeran, LABEL_PERAN } from '../lib/menu'
 import { keluar } from '../lib/auth'
+import { ambilLaporanKegiatanMenunggu } from '../lib/laporanKegiatanApi'
+import { ambilLaporanKejadianMenunggu } from '../lib/laporanKejadianApi'
+import { ambilSesiButuhTindakan } from '../lib/sesiPiketApi'
+
+const PERAN_VERIFIKATOR = ['KASUBNIT', 'KANIT_GAKKUM']
+
+function useJumlahMenungguVerifikasi(peran) {
+  const [jumlah, setJumlah] = useState(0)
+  const lokasi = useLocation()
+  useEffect(() => {
+    if (!PERAN_VERIFIKATOR.includes(peran)) return
+    let dibatalkan = false
+    async function muat() {
+      try {
+        const [keg, kej, sesi] = await Promise.all([ambilLaporanKegiatanMenunggu(), ambilLaporanKejadianMenunggu(), ambilSesiButuhTindakan()])
+        if (!dibatalkan) setJumlah(keg.length + kej.length + sesi.length)
+      } catch {
+        // Badge cuma hiasan — kalau gagal dimuat, biarkan angka lama, jangan ganggu navigasi.
+      }
+    }
+    muat()
+    const interval = setInterval(muat, 45000)
+    return () => { dibatalkan = true; clearInterval(interval) }
+  }, [peran, lokasi.pathname])
+  return jumlah
+}
 
 export default function Layout({ profil }) {
   const [menuMobileTerbuka, setMenuMobileTerbuka] = useState(false)
   const item = menuUntukPeran(profil.peran_sistem)
   const namaTampil = profil.pangkat ? `${profil.pangkat} ${profil.nama}` : profil.nama
   const inisial = profil.nama.split(' ').slice(-1)[0].slice(0, 2).toUpperCase()
+  const jumlahMenunggu = useJumlahMenungguVerifikasi(profil.peran_sistem)
 
   return (
     <div className="grid min-h-screen grid-rows-[60px_1fr] md:grid-cols-[220px_1fr] md:grid-rows-[60px_1fr]">
@@ -50,6 +77,9 @@ export default function Layout({ profil }) {
           >
             <span className="h-2 w-2 rounded-[3px] bg-[#3A4666]" />
             {m.label}
+            {m.badge === 'verifikasi' && jumlahMenunggu > 0 && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-bad px-1 text-[10px] font-bold text-white">{jumlahMenunggu}</span>
+            )}
           </NavLink>
         ))}
       </nav>

@@ -5,6 +5,7 @@ import { ambilArsipSesi } from '../lib/sesiPiketApi'
 import { ambilZona, ambilRegu, ambilJenisKegiatan, ambilJenisKecelakaan } from '../lib/referensiApi'
 import { fmtTime, fmtDate } from '../lib/format'
 import { useToast } from '../components/Toast'
+import DetailModal from '../components/DetailModal'
 
 const TABS = [['kegiatan', 'Laporan Kegiatan'], ['kejadian', 'Kejadian Kecelakaan'], ['sesi', 'Sesi Piket']]
 
@@ -17,6 +18,7 @@ export default function Arsip() {
   const [jenisKecelakaan, setJenisKecelakaan] = useState([])
   const [filter, setFilter] = useState({ kataKunci: '', zona_id: '', regu_id: '', jenis_kegiatan_id: '', jenis_kecelakaan_id: '', dari: '', sampai: '', nomor: '' })
   const [hasil, setHasil] = useState([])
+  const [detailAktif, setDetailAktif] = useState(null)
 
   useEffect(() => {
     ambilZona().then(setZona); ambilRegu().then(setRegu)
@@ -89,10 +91,10 @@ export default function Arsip() {
       <div className="overflow-x-auto rounded-xl border border-line bg-white">
         <table className="w-full min-w-[640px] text-[12.5px]">
           <thead><tr className="bg-paper-dim text-left text-[11px] uppercase text-ink-soft">
-            <th className="px-3.5 py-2.5">Waktu</th><th className="px-3.5 py-2.5">Ringkasan</th><th className="px-3.5 py-2.5">Zona/Regu</th><th className="px-3.5 py-2.5">Pelapor</th><th className="px-3.5 py-2.5">Status</th>
+            <th className="px-3.5 py-2.5">Waktu</th><th className="px-3.5 py-2.5">Ringkasan</th><th className="px-3.5 py-2.5">Zona/Regu</th><th className="px-3.5 py-2.5">Pelapor</th><th className="px-3.5 py-2.5">Status</th><th className="px-3.5 py-2.5"></th>
           </tr></thead>
           <tbody>
-            {hasil.length === 0 && <tr><td colSpan={5} className="p-10 text-center text-ink-soft">Tidak ada hasil.</td></tr>}
+            {hasil.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-ink-soft">Tidak ada hasil.</td></tr>}
             {hasil.map((r) => (
               <tr key={r.id} className="border-t border-paper-dim">
                 <td className="px-3.5 py-2.5 font-mono">{fmtTime(r.waktu)}, {fmtDate(r.waktu).split(',')[0]}</td>
@@ -102,11 +104,16 @@ export default function Arsip() {
                 <td className="px-3.5 py-2.5">
                   <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${r.status === 'TERVERIFIKASI' || r.status === 'TERTUTUP' ? 'bg-ok-bg text-ok' : 'bg-warn-bg text-warn'}`}>{r.status.replaceAll('_', ' ')}</span>
                 </td>
+                <td className="px-3.5 py-2.5"><button onClick={() => setDetailAktif({ tipe: tab, id: r.id })} className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-semibold">Lihat</button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {detailAktif && (
+        <DetailModal tipe={detailAktif.tipe} id={detailAktif.id} onClose={() => setDetailAktif(null)} onUbah={cari} />
+      )}
     </div>
   )
 }

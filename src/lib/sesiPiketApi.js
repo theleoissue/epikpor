@@ -72,6 +72,16 @@ export async function ambilArsipSesi({ zona_id } = {}) {
   return data
 }
 
+export async function ambilSatuSesi(id) {
+  const { data, error } = await supabase
+    .from('sesi_piket')
+    .select('*, pengguna:pengguna_id(nama, pangkat), zona:zona_id(nama), regu:regu_id(nomor)')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function ambilLogSesi(sesi_id) {
   const { data, error } = await supabase
     .from('log_aktivitas')

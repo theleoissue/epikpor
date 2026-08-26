@@ -78,6 +78,12 @@ export async function cariArsipKegiatan(filter) {
   return data
 }
 
+export async function ambilSatuKegiatan(id) {
+  const { data, error } = await supabase.from('laporan_kegiatan').select(SELECT_DASAR).eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
 export async function ambilLaporanKegiatanSaya(pelapor_id) {
   const { data, error } = await supabase
     .from('laporan_kegiatan')
