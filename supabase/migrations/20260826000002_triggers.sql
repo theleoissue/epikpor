@@ -28,8 +28,10 @@ create trigger trg_laporan_kejadian_updated_at before update on public.laporan_k
 --    akan beda dari OLD.status, jadi blok ini tidak kena.
 -- ============================================================
 
+-- security definer: fungsi ini insert ke log_aktivitas, yang sengaja tidak
+-- punya policy insert untuk client (RLS-09 cuma punya policy select).
 create or replace function public.reset_status_kegiatan_saat_edit()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if old.status = 'TERVERIFIKASI' and new.status = 'TERVERIFIKASI' and (
     old.jenis_kegiatan_id is distinct from new.jenis_kegiatan_id or
@@ -50,7 +52,7 @@ create trigger trg_kegiatan_reset_status before update on public.laporan_kegiata
   for each row execute function public.reset_status_kegiatan_saat_edit();
 
 create or replace function public.reset_status_kejadian_saat_edit()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   perubahan jsonb := '[]'::jsonb;
 begin
@@ -94,7 +96,7 @@ create trigger trg_kejadian_reset_status before update on public.laporan_kejadia
 -- Verifikasi laporan_kegiatan juga catat siapa & kapan (kolomnya diisi manual
 -- di sini karena laporan_kegiatan tidak punya trigger W1-W5 seperti di atas).
 create or replace function public.catat_verifikasi_kegiatan()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if old.status is distinct from new.status and new.status = 'TERVERIFIKASI' then
     new.diverifikasi_oleh := auth.uid();
