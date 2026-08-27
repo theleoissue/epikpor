@@ -27,12 +27,53 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } })
 }
 
+async function buatAuthUser(admin: ReturnType<typeof createClient>, nrp: string, password: string) {
+  // email_confirm: true membuat user langsung berstatus terkonfirmasi TANPA
+  // mengirim email apa pun — beda dengan supabase.auth.signUp() di sisi klien,
+  // yang tetap mencoba lewat jalur pengiriman email (dan kena "email rate
+  // limit exceeded" pada layanan email bawaan Supabase yang sangat dibatasi).
+  return admin.auth.admin.createUser({ email: emailDariNrp(nrp), password, email_confirm: true })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS })
   }
 
   try {
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+    const body = await req.json()
+
+    // Bootstrap Administrator pertama: TIDAK butuh sesi login sama sekali
+    // (memang belum ada siapa pun yang bisa login) — cuma boleh jalan selama
+    // belum ada satu pun baris peran_sistem='ADMIN'.
+    if (body.action === 'bootstrap') {
+      const { count } = await admin.from('pengguna').select('id', { count: 'exact', head: true }).eq('peran_sistem', 'ADMIN')
+      if ((count ?? 0) > 0) {
+        return json({ error: 'Administrator pertama sudah pernah didaftarkan.' }, 403)
+      }
+      const { nama, nrp, pangkat, gelar, password } = body
+      if (!nama || !nrp || !password) {
+        return json({ error: 'Lengkapi nama, NRP, dan kata sandi.' }, 400)
+      }
+      const { data: dibuat, error: buatErr } = await buatAuthUser(admin, nrp, password)
+      if (buatErr) return json({ error: buatErr.message }, 400)
+
+      const { error: insertErr } = await admin.from('pengguna').insert({
+        id: dibuat.user.id, nama, nrp, pangkat, gelar, peran_sistem: 'ADMIN', status_aktif: true,
+      })
+      if (insertErr) {
+        await admin.auth.admin.deleteUser(dibuat.user.id)
+        return json({ error: insertErr.message }, 400)
+      }
+      return json({ ok: true })
+    }
+
+    // Aksi lainnya (buat akun biasa, reset password) wajib dipanggil Admin
+    // yang sudah login.
     const authHeader = req.headers.get('Authorization') ?? ''
     const anonClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -44,17 +85,10 @@ Deno.serve(async (req) => {
       return json({ error: 'Tidak terautentikasi.' }, 401)
     }
 
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
-
     const { data: pemanggil } = await admin.from('pengguna').select('peran_sistem').eq('id', user.id).single()
     if (pemanggil?.peran_sistem !== 'ADMIN') {
       return json({ error: 'Hanya administrator yang boleh mengelola akun.' }, 403)
     }
-
-    const body = await req.json()
 
     if (body.action === 'buat') {
       const { nama, nrp, pangkat, gelar, peran_sistem, zona_id, regu_id, password } = body
@@ -67,11 +101,7 @@ Deno.serve(async (req) => {
       if (peran_sistem === 'BANIT' && !regu_id) {
         return json({ error: 'Personel dengan peran Banit wajib diberi regu.' }, 400)
       }
-      const { data: dibuat, error: buatErr } = await admin.auth.admin.createUser({
-        email: emailDariNrp(nrp),
-        password,
-        email_confirm: true,
-      })
+      const { data: dibuat, error: buatErr } = await buatAuthUser(admin, nrp, password)
       if (buatErr) return json({ error: buatErr.message }, 400)
 
       const { error: insertErr } = await admin.from('pengguna').insert({

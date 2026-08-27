@@ -84,11 +84,9 @@ function SetupAdminPertama() {
     setMemuat(true)
     try {
       await daftarAdminPertama(form)
-      // Reload penuh (bukan cuma ganti state) supaya AuthProvider mengambil
-      // ulang sesi + profil dari awal — signUp() sudah membuat sesi aktif
-      // sebelum baris pengguna-nya sendiri sempat dibuat oleh RPC di atas,
-      // jadi kalau cuma ganti state di sini, ada celah singkat profil masih
-      // kosong dan tidak ada yang memicu pengambilan ulang.
+      // daftarAdminPertama sudah login otomatis di baliknya (masuk()), jadi
+      // AuthProvider akan menangkap sesi barunya sendiri lewat
+      // onAuthStateChange. Reload penuh dipakai supaya transisinya bersih.
       window.location.reload()
     } catch (err) {
       setError(err.message || 'Gagal mendaftarkan Administrator.')

@@ -15,11 +15,10 @@ Stack: Vite + React 19 + Tailwind v4 + Supabase (Postgres, Auth, Storage) + `rea
    5. `20260826000004_seed_referensi.sql`
    6. `20260826000005_deteksi_sesi_lewat_18_jam.sql`
    7. `20260827000006_bootstrap_admin_pertama.sql`
-3. Buka **Edge Functions** → **Deploy a new function** → beri nama `admin-kelola-akun` → tempel isi `supabase/functions/admin-kelola-akun/index.ts`. (Env `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` otomatis tersedia, tidak perlu diisi manual.)
-4. Buka **Authentication → Sign In / Providers** (atau **Authentication → Settings**, tergantung versi dashboard), cari pengaturan **Email** provider, dan **matikan "Confirm email"**. Ini wajib — NRP disintesis jadi alamat email palsu (`nrp<NRP>@epikpor.app`) yang memang tidak bisa menerima email konfirmasi apa pun.
-5. Buka **Project Settings → API**, catat **Project URL** dan **anon public key** untuk langkah berikutnya.
-6. Jalankan aplikasinya (lihat "Menjalankan lokal" di bawah, atau setelah di-deploy ke Vercel). Karena belum ada satu pun akun Administrator, halaman Login akan otomatis menampilkan layar **"Pengaturan Awal"** — isi nama, NRP, pangkat, dan kata sandi Anda sendiri di situ untuk mendaftar sebagai Administrator pertama. **Tidak perlu lagi bikin user manual lewat dashboard Supabase.** Setelah ini, layar itu tidak akan muncul lagi untuk siapa pun — akun-akun berikutnya (semua peran) dibuat lewat layar **Kelola Data** di dalam aplikasi oleh Administrator ini.
-7. (Boleh menyusul, tidak wajib sebelum uji coba pertama) Jadwalkan penutupan otomatis sesi piket yang lewat 18 jam — lihat komentar di kepala file `20260826000005_deteksi_sesi_lewat_18_jam.sql` untuk dua cara (pg_cron atau Scheduled Trigger dashboard). Sebelum dijadwalkan, sesi yang lupa ditutup tidak akan otomatis masuk status pelanggaran.
+3. Buka **Edge Functions** → **Deploy a new function** → beri nama `admin-kelola-akun` → tempel isi `supabase/functions/admin-kelola-akun/index.ts`. (Env `SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` otomatis tersedia, tidak perlu diisi manual.)
+4. Buka **Project Settings → API**, catat **Project URL** dan **anon public key** untuk langkah berikutnya.
+5. Jalankan aplikasinya (lihat "Menjalankan lokal" di bawah, atau setelah di-deploy ke Vercel). Karena belum ada satu pun akun Administrator, halaman Login akan otomatis menampilkan layar **"Pengaturan Awal"** — isi nama, NRP, pangkat, dan kata sandi Anda sendiri di situ untuk mendaftar sebagai Administrator pertama (diproses lewat Edge Function di atas, tidak lewat email sama sekali, jadi tidak akan kena batas kirim email Supabase). **Tidak perlu bikin user manual lewat dashboard Supabase.** Setelah ini, layar itu tidak akan muncul lagi untuk siapa pun — akun-akun berikutnya (semua peran) dibuat lewat layar **Kelola Data** di dalam aplikasi oleh Administrator ini.
+6. (Boleh menyusul, tidak wajib sebelum uji coba pertama) Jadwalkan penutupan otomatis sesi piket yang lewat 18 jam — lihat komentar di kepala file `20260826000005_deteksi_sesi_lewat_18_jam.sql` untuk dua cara (pg_cron atau Scheduled Trigger dashboard). Sebelum dijadwalkan, sesi yang lupa ditutup tidak akan otomatis masuk status pelanggaran.
 
 ## 2. Push ke GitHub
 
@@ -31,8 +30,8 @@ Stack: Vite + React 19 + Tailwind v4 + Supabase (Postgres, Auth, Storage) + `rea
 1. Buka [vercel.com](https://vercel.com) → **Add New → Project** → import repo `EPIKPOR` dari GitHub.
 2. Vercel otomatis mendeteksi ini sebagai project Vite — tidak perlu ubah build command.
 3. Sebelum **Deploy**, buka **Environment Variables**, isi:
-   - `VITE_SUPABASE_URL` = Project URL dari langkah 1.5
-   - `VITE_SUPABASE_ANON_KEY` = anon public key dari langkah 1.5
+   - `VITE_SUPABASE_URL` = Project URL dari langkah 1.4
+   - `VITE_SUPABASE_ANON_KEY` = anon public key dari langkah 1.4
 4. Klik **Deploy**.
 
 ## Menjalankan lokal
@@ -54,7 +53,7 @@ Modul yang sebelumnya tidak ada di mockup dan sudah dibangun di sini: **Roster P
 - **Kolase foto TKP** (gambar gabungan 4 foto ala mockup, murni dekoratif) — belum ada.
 - **Edit lengkap Kejadian Kecelakaan** (ubah kembali orang/kendaraan/faktor penyebab setelah terkirim) — `DetailModal` cuma bisa mengedit lokasi & keterangan Laporan Kegiatan; API `gantiOrangDanKendaraan` sudah ada di `laporanKejadianApi.js` tapi belum ada form yang memakainya.
 - **Penyuntingan manual satu stempel waktu** (kalau telat mengetuk) — cuma bisa ketuk-batal-ketuk ulang, belum ada input jam manual.
-- **Deteksi "dijadwalkan tapi tidak buka sesi"** (status `PELANGGARAN_TIDAK_BUKA`) — belum ada mekanismenya sama sekali, beda dengan auto-tutup 18 jam yang fungsinya sudah ada (lihat langkah 1.7).
+- **Deteksi "dijadwalkan tapi tidak buka sesi"** (status `PELANGGARAN_TIDAK_BUKA`) — belum ada mekanismenya sama sekali, beda dengan auto-tutup 18 jam yang fungsinya sudah ada (lihat langkah 1.6).
 - **Notifikasi pra-piket** ("personel menerima pemberitahuan sebelum jam piket dimulai", Bagian 5.8) — perlu scheduled job yang membandingkan roster dengan jam sekarang, belum dibangun.
 
 Semuanya aman ditambahkan belakangan tanpa mengubah skema database yang sudah ada.

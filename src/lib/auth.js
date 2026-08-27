@@ -42,19 +42,21 @@ export async function adaAdmin() {
 // Cuma untuk Administrator PALING PERTAMA (Login.jsx menyembunyikan ini
 // sendiri begitu satu Admin sudah ada). Semua akun sesudahnya wajib lewat
 // Kelola Data oleh Admin yang sudah login (Dokumen Teknis Bagian 5.1).
+//
+// Lewat Edge Function (service role), BUKAN supabase.auth.signUp() sisi
+// klien — signUp() tetap lewat jalur pengiriman email meski emailnya
+// sintesis, dan langsung kena "email rate limit exceeded" di layanan email
+// bawaan Supabase yang sangat dibatasi. admin.createUser() di server tidak
+// pernah mengirim email sama sekali.
 export async function daftarAdminPertama({ nama, nrp, pangkat, gelar, password }) {
-  const { data, error: signUpError } = await supabase.auth.signUp({ email: emailDariNrp(nrp), password })
-  if (signUpError) {
-    if (signUpError.message.includes('already registered')) {
-      throw new Error('NRP ini sudah terdaftar. Coba masuk seperti biasa, atau hubungi yang membuat project ini.')
-    }
-    throw signUpError
-  }
-  if (!data.session) {
-    throw new Error('Pendaftaran perlu konfirmasi email yang tidak bisa diterima (email ini cuma format internal). Matikan "Confirm email" di Supabase: Authentication → Providers → Email, lalu coba lagi.')
-  }
-  const { error: rpcError } = await supabase.rpc('daftar_admin_pertama', { p_nama: nama, p_nrp: nrp, p_pangkat: pangkat, p_gelar: gelar })
-  if (rpcError) throw rpcError
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-kelola-akun`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'bootstrap', nama, nrp, pangkat, gelar, password }),
+  })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error || 'Gagal mendaftarkan Administrator.')
+  await masuk(nrp, password)
 }
 
 export async function ambilProfilSaya(authUserId) {
