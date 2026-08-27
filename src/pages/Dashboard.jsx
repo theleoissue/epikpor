@@ -17,17 +17,17 @@ export default function Dashboard() {
     async function muat() {
       const zonaList = await ambilZona()
       const kartu = await Promise.all(zonaList.map(async (z) => {
-        const [{ count: aktif }, { count: menungguKeg }, { count: menungguKej }, { count: adaKasubnit }, jadwal] = await Promise.all([
+        const [{ count: aktif }, { count: menungguKeg }, { count: menungguKej }, { data: kasubnit }, jadwal] = await Promise.all([
           supabase.from('sesi_piket').select('id', { count: 'exact', head: true }).eq('zona_id', z.id).eq('status', 'AKTIF'),
           supabase.from('laporan_kegiatan').select('id', { count: 'exact', head: true }).eq('zona_id', z.id),
           supabase.from('laporan_kejadian').select('id', { count: 'exact', head: true }).eq('zona_id', z.id),
           // Kasubnit suatu zona = pengguna aktif berperan KASUBNIT dengan zona_id ini —
           // bukan kolom terpisah, supaya tidak ada dua sumber kebenaran yang bisa tidak sinkron.
-          supabase.from('pengguna').select('id', { count: 'exact', head: true }).eq('zona_id', z.id).eq('peran_sistem', 'KASUBNIT').eq('status_aktif', true),
+          supabase.from('pengguna').select('nama, pangkat').eq('zona_id', z.id).eq('peran_sistem', 'KASUBNIT').eq('status_aktif', true).limit(1),
           ambilJadwalHariIni(z.id),
         ])
         const dijadwalkan = new Set(jadwal.flatMap((j) => (j.personel || []).map((p) => p.pengguna?.id)))
-        return { ...z, aktif, menungguKeg, menungguKej, adaKasubnit, dijadwalkanCount: dijadwalkan.size }
+        return { ...z, aktif, menungguKeg, menungguKej, kasubnit: kasubnit?.[0] || null, dijadwalkanCount: dijadwalkan.size }
       }))
       setZonaCards(kartu)
 
@@ -97,7 +97,7 @@ export default function Dashboard() {
               <div className="mb-3 flex items-start justify-between">
                 <div>
                   <div className="font-display text-[15px] font-bold">Zona {z.nama}</div>
-                  <div className="text-[11px] text-ink-soft">{z.adaKasubnit ? 'Kasubnit ditetapkan' : 'Kasubnit belum ditetapkan'}</div>
+                  <div className="text-[11px] text-ink-soft">{z.kasubnit ? `Kasubnit: ${z.kasubnit.pangkat ? `${z.kasubnit.pangkat} ` : ''}${z.kasubnit.nama}` : 'Kasubnit belum ditetapkan'}</div>
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${kurang ? 'bg-warn-bg text-warn' : z.aktif > 0 ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>
                   {kurang ? `Kurang ${z.dijadwalkanCount - z.aktif} personel` : z.aktif > 0 ? 'Piket aktif' : 'Tidak ada sesi aktif'}
