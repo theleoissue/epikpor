@@ -7,13 +7,12 @@ import { ambilSesiAktifSaya } from '../lib/sesiPiketApi'
 import { kirimLaporanKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
 import { unggahFoto, getGeoPosition } from '../lib/storage'
 import { tambahAntrean } from '../lib/offlineQueue'
+import { SASARAN_WAKTU_TANGGAP } from '../lib/format'
 
 const STAMP_DEFS = [
-  ['w1', 'W1', 'Waktu kejadian / panggilan masuk'],
-  ['w2', 'W2', 'Laporan diterima petugas piket'],
-  ['w3', 'W3', 'Tiba di tempat kejadian'],
-  ['w4', 'W4', 'Kronologis selesai disusun'],
-  ['w5', 'W5', 'Laporan dinyatakan selesai'],
+  ['waktu_diterima', 'Laporan Diterima', 'Panggilan / laporan masuk'],
+  ['waktu_penanganan', 'Dalam Penanganan', 'Petugas tiba dan menangani TKP'],
+  ['waktu_selesai', 'Laporan Selesai', 'Penanganan dinyatakan selesai'],
 ]
 const FAKTOR_MANUSIA_OPT = ['Lengah/Tidak Konsentrasi', 'Mengantuk', 'Melanggar Rambu/Marka', 'Melebihi Batas Kecepatan', 'Tidak Menjaga Jarak Aman', 'Di Bawah Pengaruh Alkohol/Obat', 'Kurang Terampil/Belum Mahir', 'Dalam Proses Penyelidikan']
 const FAKTOR_KENDARAAN_OPT = ['Kendaraan Laik Jalan', 'Rem Blong/Tidak Berfungsi', 'Ban Pecah/Gundul', 'Lampu Tidak Berfungsi', 'Muatan Berlebih', 'Modifikasi Tidak Sesuai Standar']
@@ -135,7 +134,7 @@ export default function Kejadian() {
   }
 
   async function submit() {
-    if (!w.w1) return toast('Ketuk minimal stempel W1 terlebih dahulu', true)
+    if (!w.waktu_diterima) return toast('Ketuk stempel "Laporan Diterima" terlebih dahulu', true)
     if (!lokasi.trim() || !jenisKecelakaanId || !tipeTabrakanId) return toast('Lengkapi lokasi, jenis kecelakaan, dan tipe tabrakan', true)
     setMengirim(true)
 
@@ -177,10 +176,10 @@ export default function Kejadian() {
         <p className="mt-1 text-[13.5px] text-ink-soft">Ketuk tiap stempel waktu tepat saat peristiwanya terjadi. Sistem menghitung sendiri keempat rentang waktu.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         {STAMP_DEFS.map(([key, kode, label]) => (
           <div key={key} onClick={() => tapStamp(key)} className={`cursor-pointer rounded-xl border p-3 text-center ${w[key] ? 'border-[#BFE0CD] bg-ok-bg' : 'border-line bg-white'}`}>
-            <div className="font-mono text-[13px] font-bold text-navy-900">{kode}</div>
+            <div className="font-display text-[13px] font-bold text-navy-900">{kode}</div>
             <div className="my-1.5 min-h-[26px] text-[10.5px] text-ink-soft">{label}</div>
             <div className={`font-mono text-[13px] font-bold ${w[key] ? 'text-ok' : 'text-ink-soft'}`}>{w[key] ? new Date(w[key]).toTimeString().slice(0, 8) : '—'}</div>
           </div>
@@ -189,7 +188,10 @@ export default function Kejadian() {
 
       <div className="rounded-xl bg-navy-900 p-4 text-white">
         <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-white/60">Rentang terhitung otomatis</div>
-        {[['Waktu menerima laporan', 'w1', 'w2', 600], ['Waktu tiba di tempat kejadian', 'w2', 'w3', 2100], ['Penyusunan kronologis', 'w3', 'w4', 14400], ['Penyelesaian laporan', 'w1', 'w5', 86400]].map(([label, a, b, batas]) => {
+        {[
+          ['Waktu tanggap penanganan', 'waktu_diterima', 'waktu_penanganan', SASARAN_WAKTU_TANGGAP.penanganan],
+          ['Penyelesaian laporan', 'waktu_diterima', 'waktu_selesai', SASARAN_WAKTU_TANGGAP.selesai],
+        ].map(([label, a, b, batas]) => {
           const r = rentang(a, b, batas)
           return (
             <div key={label} className="flex justify-between border-b border-dashed border-white/10 py-1.5 text-[12.5px] last:border-none">

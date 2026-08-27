@@ -12,6 +12,13 @@ import { buildLaporanKejadianWA } from '../lib/waReport'
 
 const PERAN_VERIFIKATOR = ['KASUBNIT', 'KANIT_GAKKUM']
 
+// Tiga tahap stempel waktu kejadian (sebelumnya lima: W1-W5).
+const STEMPEL = [
+  ['waktu_diterima', 'Laporan Diterima'],
+  ['waktu_penanganan', 'Dalam Penanganan'],
+  ['waktu_selesai', 'Laporan Selesai'],
+]
+
 export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const { profil } = useAuth()
   const toast = useToast()
@@ -26,7 +33,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const [editMode, setEditMode] = useState(false)
   const [editLokasi, setEditLokasi] = useState('')
   const [editKeterangan, setEditKeterangan] = useState('')
-  const [editW, setEditW] = useState({ w1: '', w2: '', w3: '', w4: '', w5: '' })
+  const [editW, setEditW] = useState({ waktu_diterima: '', waktu_penanganan: '', waktu_selesai: '' })
   const [catatanKecuali, setCatatanKecuali] = useState('')
 
   async function muat() {
@@ -82,8 +89,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
     setEditLokasi(data.lokasi || '')
     setEditKeterangan(data.keterangan || '')
     setEditW({
-      w1: keInputDatetimeLocal(data.w1), w2: keInputDatetimeLocal(data.w2), w3: keInputDatetimeLocal(data.w3),
-      w4: keInputDatetimeLocal(data.w4), w5: keInputDatetimeLocal(data.w5),
+      waktu_diterima: keInputDatetimeLocal(data.waktu_diterima),
+      waktu_penanganan: keInputDatetimeLocal(data.waktu_penanganan),
+      waktu_selesai: keInputDatetimeLocal(data.waktu_selesai),
     })
     setEditMode(true)
   }
@@ -96,8 +104,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       } else if (tipe === 'kejadian') {
         await perbaruiLaporanKejadian(id, {
           lokasi: editLokasi.trim(),
-          w1: dariInputDatetimeLocal(editW.w1), w2: dariInputDatetimeLocal(editW.w2), w3: dariInputDatetimeLocal(editW.w3),
-          w4: dariInputDatetimeLocal(editW.w4), w5: dariInputDatetimeLocal(editW.w5),
+          waktu_diterima: dariInputDatetimeLocal(editW.waktu_diterima),
+          waktu_penanganan: dariInputDatetimeLocal(editW.waktu_penanganan),
+          waktu_selesai: dariInputDatetimeLocal(editW.waktu_selesai),
         })
       }
       toast('Perubahan tersimpan')
@@ -207,11 +216,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
           </div>
 
           {tipe === 'kejadian' && (
-            <div className="mb-4 grid grid-cols-5 gap-2">
-              {[['W1', data.w1], ['W2', data.w2], ['W3', data.w3], ['W4', data.w4], ['W5', data.w5]].map(([k, v]) => (
-                <div key={k} className="rounded-lg border border-line bg-white p-2 text-center">
-                  <div className="font-mono text-[11px] font-bold text-navy-900">{k}</div>
-                  <div className="mt-1 font-mono text-[11px] text-ink-soft">{v ? new Date(v).toTimeString().slice(0, 8) : '—'}</div>
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              {STEMPEL.map(([kunci, judul]) => (
+                <div key={kunci} className="rounded-lg border border-line bg-white p-2 text-center">
+                  <div className="text-[10.5px] font-bold leading-tight text-navy-900">{judul}</div>
+                  <div className="mt-1 font-mono text-[11px] text-ink-soft">{data[kunci] ? new Date(data[kunci]).toTimeString().slice(0, 8) : '—'}</div>
                 </div>
               ))}
             </div>
@@ -232,15 +241,15 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
               )}
               {tipe === 'kejadian' && (
                 <div>
-                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Stempel waktu W1–W5</div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {['w1', 'w2', 'w3', 'w4', 'w5'].map((k) => (
-                      <label key={k} className="text-[11px] text-ink-soft">
-                        {k.toUpperCase()}
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Stempel waktu</div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {STEMPEL.map(([kunci, judul]) => (
+                      <label key={kunci} className="text-[11px] text-ink-soft">
+                        {judul}
                         <input
                           type="datetime-local"
-                          value={editW[k]}
-                          onChange={(e) => setEditW((prev) => ({ ...prev, [k]: e.target.value }))}
+                          value={editW[kunci]}
+                          onChange={(e) => setEditW((prev) => ({ ...prev, [kunci]: e.target.value }))}
                           className="mt-0.5 w-full rounded-lg border border-line px-2 py-1.5 text-[12px]"
                         />
                       </label>

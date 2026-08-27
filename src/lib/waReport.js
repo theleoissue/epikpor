@@ -62,9 +62,9 @@ Kepada : Yth. DIRLANTAS POLDA JABAR
 Dari : KASAT LANTAS POLRESTABES BANDUNG
 Perihal : Penanganan kecelakaan lalu lintas ${x.jenis_kecelakaan?.nama || ''} di ${x.lokasi || ''}.
 Assalamu'alaikum wr. wb.
-Selamat ${sapaan(x.w1)} Komandan, mohon izin melaporkan telah terjadi kecelakaan lalu lintas ${x.jenis_kecelakaan?.nama || '(tidak diketahui)'}, sbb :
+Selamat ${sapaan(x.waktu_diterima)} Komandan, mohon izin melaporkan telah terjadi kecelakaan lalu lintas ${x.jenis_kecelakaan?.nama || '(tidak diketahui)'}, sbb :
 ✳ W A K T U :
-${hariTanggal(now)} sekira Pukul ${x.w1 ? new Date(x.w1).toTimeString().slice(0, 5) : '(tidak diketahui)'} WIB.
+${hariTanggal(now)} sekira Pukul ${x.waktu_diterima ? new Date(x.waktu_diterima).toTimeString().slice(0, 5) : '(tidak diketahui)'} WIB.
 ✳ T K P :
 ${x.lokasi}.
 ✳ KENDARAAN YANG TERLIBAT :

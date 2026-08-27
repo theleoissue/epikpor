@@ -48,7 +48,7 @@ export default function Verifikasi() {
       )}
       {tab === 'kejadian' && (
         <TabelSederhana
-          rows={kejadian.map((x) => ({ id: x.id, waktu: x.w1 ? fmtTime(x.w1) : '-', ringkasan: `${x.jenis_kecelakaan?.nama || 'Kejadian'} — ${x.lokasi}`, zona: `Zona ${x.zona?.nama} · Regu ${x.regu?.nomor}`, pelapor: x.pelapor_nama, adaFoto: (x.lampiran || []).length > 0 }))}
+          rows={kejadian.map((x) => ({ id: x.id, waktu: x.waktu_diterima ? fmtTime(x.waktu_diterima) : '-', ringkasan: `${x.jenis_kecelakaan?.nama || 'Kejadian'} — ${x.lokasi}`, zona: `Zona ${x.zona?.nama} · Regu ${x.regu?.nomor}`, pelapor: x.pelapor_nama, adaFoto: (x.lampiran || []).length > 0 }))}
           onLihat={(id) => setDetailAktif({ tipe: 'kejadian', id })}
         />
       )}

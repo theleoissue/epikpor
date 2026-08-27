@@ -25,7 +25,7 @@ export function bulanJakarta(iso) {
 }
 
 // Konversi ke/dari <input type="datetime-local"> memakai jam perangkat apa
-// adanya (bukan dipaksa Asia/Jakarta) — konsisten dengan cara stempel W1-W5
+// adanya (bukan dipaksa Asia/Jakarta) — konsisten dengan cara stempel waktu
 // direkam pertama kali di Kejadian.jsx (new Date().toISOString() dari jam
 // perangkat), yang dalam praktiknya sudah WIB karena dipakai di lapangan.
 export function keInputDatetimeLocal(iso) {
@@ -55,10 +55,11 @@ export function rentangWaktu(dariIso, keIso) {
   return { diffSec, mm: Math.floor(diffSec / 60), ss: diffSec % 60 }
 }
 
-// Ambang batas Bagian 7 Dokumen Teknis — dipakai untuk menandai rentang yang melampaui sasaran.
+// Ambang batas Bagian 7 Dokumen Teknis, disesuaikan setelah stempel waktu
+// disederhanakan dari lima tahap menjadi tiga. Sasaran penanganan (45 menit)
+// adalah gabungan dua ambang lama yang kini dilebur: menerima laporan
+// (10 menit) + tiba di tempat kejadian (35 menit).
 export const SASARAN_WAKTU_TANGGAP = {
-  terima: 10 * 60,
-  tiba: 35 * 60,
-  kronologis: 4 * 3600,
+  penanganan: 45 * 60,
   selesai: 24 * 3600,
 }

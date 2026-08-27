@@ -68,8 +68,8 @@ export default function Dashboard() {
         const rentangLewat = (a, b, batas) => rows.filter((r) => r[a] && r[b] && (new Date(r[b]) - new Date(r[a])) / 1000 > batas).length
         return {
           bulan: NAMA_BULAN[i], jumlah: rows.length,
-          lewatTerima: rentangLewat('w1', 'w2', SASARAN_WAKTU_TANGGAP.terima),
-          lewatTiba: rentangLewat('w2', 'w3', SASARAN_WAKTU_TANGGAP.tiba),
+          lewatTerima: rentangLewat('waktu_diterima', 'waktu_penanganan', SASARAN_WAKTU_TANGGAP.penanganan),
+          lewatTiba: rentangLewat('waktu_diterima', 'waktu_selesai', SASARAN_WAKTU_TANGGAP.selesai),
           historis: false,
         }
       })

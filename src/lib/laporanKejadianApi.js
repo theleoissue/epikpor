@@ -161,7 +161,7 @@ export async function ambilSatuKejadian(id) {
 export async function rekapBulanan(tahun) {
   const { data, error } = await supabase
     .from('laporan_kejadian')
-    .select('created_at, zona_id, w1, w2, w3, w4, w5')
+    .select('created_at, zona_id, waktu_diterima, waktu_penanganan, waktu_selesai')
     .gte('created_at', `${tahun}-01-01`)
     .lt('created_at', `${tahun + 1}-01-01`)
   if (error) throw error
