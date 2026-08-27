@@ -5,11 +5,16 @@ import {
   ambilJenisKegiatan, ambilJenisKecelakaan, ambilTipeTabrakan,
   tambahJenisKegiatan, tambahJenisKecelakaan, tambahTipeTabrakan,
   nonaktifkanJenisKegiatan, nonaktifkanJenisKecelakaan, nonaktifkanTipeTabrakan,
+  tambahZona, perbaruiZona, hapusZona, tambahRegu, perbaruiRegu, hapusRegu,
+  ambilTitikRawan, tambahTitikRawan, perbaruiTitikRawan, hapusTitikRawan,
 } from '../lib/referensiApi'
 import { LABEL_PERAN } from '../lib/menu'
 import ImporPersonelMassal from '../components/ImporPersonelMassal'
 
-const TABS = [['personel', 'Personel'], ['kegiatan', 'Jenis Kegiatan'], ['kecelakaan', 'Jenis & Tipe Kecelakaan']]
+const TABS = [
+  ['personel', 'Personel'], ['kegiatan', 'Jenis Kegiatan'], ['kecelakaan', 'Jenis & Tipe Kecelakaan'],
+  ['wilayah', 'Zona & Regu'], ['rawan', 'Titik Rawan'],
+]
 const PERAN_OPT = Object.entries(LABEL_PERAN)
 
 // Dikelompokkan per zona (bukan satu tabel alfabetis campur) supaya susunannya
@@ -58,6 +63,8 @@ export default function Kelola() {
           <TabDaftar label="tipe tabrakan" ambil={ambilTipeTabrakan} tambah={tambahTipeTabrakan} nonaktifkan={nonaktifkanTipeTabrakan} />
         </div>
       )}
+      {tab === 'wilayah' && <TabWilayah />}
+      {tab === 'rawan' && <TabTitikRawan />}
     </div>
   )
 }
@@ -318,6 +325,194 @@ function TabDaftar({ label, ambil, tambah, nonaktifkan }) {
           <button onClick={() => nonaktifkanBaris(d.id)} className="rounded-lg bg-bad-bg px-2 py-1 text-[11px] text-bad">Nonaktifkan</button>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Zona & Regu jarang berubah, dan dipakai banyak tabel lain (FK) -- makanya
+// hapus dibiarkan gagal dengan pesan jelas kalau masih dipakai, bukan
+// dipaksa (cascade) yang bisa diam-diam merusak data personel/laporan.
+function TabWilayah() {
+  const toast = useToast()
+  const [zona, setZona] = useState([])
+  const [regu, setRegu] = useState([])
+  const [zonaBaru, setZonaBaru] = useState('')
+  const [reguBaru, setReguBaru] = useState('')
+
+  async function muat() {
+    try { setZona(await ambilZona()); setRegu(await ambilRegu()) }
+    catch (e) { toast(e.message || 'Gagal memuat data wilayah', true) }
+  }
+  useEffect(() => { muat() }, [])
+
+  async function tambahZonaBaris() {
+    if (!zonaBaru.trim()) return toast('Tulis nama zona terlebih dahulu', true)
+    try { await tambahZona(zonaBaru.trim(), zona.length); setZonaBaru(''); toast('Zona ditambahkan'); muat() }
+    catch (e) { toast(e.message || 'Gagal menambah zona', true) }
+  }
+  async function simpanZonaBaris(z) {
+    try { await perbaruiZona(z.id, { nama: z.nama, urutan_tampil: z.urutan_tampil }); toast('Zona diperbarui'); muat() }
+    catch (e) { toast(e.message || 'Gagal menyimpan zona', true) }
+  }
+  async function hapusZonaBaris(id) {
+    try { await hapusZona(id); toast('Zona dihapus'); muat() }
+    catch (e) { toast(e.message || 'Gagal menghapus zona', true) }
+  }
+
+  async function tambahReguBaris() {
+    if (!reguBaru.trim()) return toast('Tulis nomor regu terlebih dahulu', true)
+    try { await tambahRegu(reguBaru.trim()); setReguBaru(''); toast('Regu ditambahkan'); muat() }
+    catch (e) { toast(e.message || 'Gagal menambah regu', true) }
+  }
+  async function simpanReguBaris(r) {
+    try { await perbaruiRegu(r.id, { nomor: r.nomor }); toast('Regu diperbarui'); muat() }
+    catch (e) { toast(e.message || 'Gagal menyimpan regu', true) }
+  }
+  async function hapusReguBaris(id) {
+    try { await hapusRegu(id); toast('Regu dihapus'); muat() }
+    catch (e) { toast(e.message || 'Gagal menghapus regu', true) }
+  }
+
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      <div className="rounded-2xl border border-line bg-white p-5">
+        <h3 className="mb-1 font-display text-[14.5px] font-semibold">Zona</h3>
+        <p className="mb-3 text-[11.5px] text-ink-soft">Urutan tampil menentukan urutan kartu zona di Papan Pemantauan.</p>
+        <div className="mb-3.5 flex gap-2">
+          <input value={zonaBaru} onChange={(e) => setZonaBaru(e.target.value)} placeholder="Tambah zona baru…" className="flex-1 rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+          <button onClick={tambahZonaBaris} className="rounded-lg border border-line px-3 py-2 text-[12px] font-semibold">+ Tambah</button>
+        </div>
+        {zona.map((z) => (
+          <div key={z.id} className="mb-1.5 flex items-center gap-1.5">
+            <input value={z.nama} onChange={(e) => setZona((arr) => arr.map((x) => x.id === z.id ? { ...x, nama: e.target.value } : x))} className="flex-1 rounded-lg border border-line px-2.5 py-1.5 text-[12.5px]" />
+            <input type="number" value={z.urutan_tampil} onChange={(e) => setZona((arr) => arr.map((x) => x.id === z.id ? { ...x, urutan_tampil: Number(e.target.value) } : x))} className="w-14 rounded-lg border border-line px-2 py-1.5 text-[12.5px]" />
+            <button onClick={() => simpanZonaBaris(z)} className="rounded-lg border border-line px-2 py-1.5 text-[11px] font-semibold">Simpan</button>
+            <button onClick={() => hapusZonaBaris(z.id)} className="rounded-lg bg-bad-bg px-2 py-1.5 text-[11px] text-bad">Hapus</button>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-line bg-white p-5">
+        <h3 className="mb-1 font-display text-[14.5px] font-semibold">Regu</h3>
+        <p className="mb-3 text-[11.5px] text-ink-soft">Nomor/nama regu, dipakai sama di semua zona.</p>
+        <div className="mb-3.5 flex gap-2">
+          <input value={reguBaru} onChange={(e) => setReguBaru(e.target.value)} placeholder="Tambah regu baru…" className="flex-1 rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+          <button onClick={tambahReguBaris} className="rounded-lg border border-line px-3 py-2 text-[12px] font-semibold">+ Tambah</button>
+        </div>
+        {regu.map((r) => (
+          <div key={r.id} className="mb-1.5 flex items-center gap-1.5">
+            <input value={r.nomor} onChange={(e) => setRegu((arr) => arr.map((x) => x.id === r.id ? { ...x, nomor: e.target.value } : x))} className="flex-1 rounded-lg border border-line px-2.5 py-1.5 text-[12.5px]" />
+            <button onClick={() => simpanReguBaris(r)} className="rounded-lg border border-line px-2 py-1.5 text-[11px] font-semibold">Simpan</button>
+            <button onClick={() => hapusReguBaris(r.id)} className="rounded-lg bg-bad-bg px-2 py-1.5 text-[11px] text-bad">Hapus</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TabTitikRawan() {
+  const toast = useToast()
+  const [daftar, setDaftar] = useState([])
+  const [editTarget, setEditTarget] = useState(null) // {} baru, {...data} edit
+  const [memproses, setMemproses] = useState(false)
+
+  async function muat() {
+    try { setDaftar(await ambilTitikRawan()) }
+    catch (e) { toast(e.message || 'Gagal memuat titik rawan', true) }
+  }
+  useEffect(() => { muat() }, [])
+
+  function mulaiTambah() {
+    setEditTarget({ nama_jalan: '', latitude: '', longitude: '', jumlah_laka: 0, jumlah_point: 0, md: 0, lb: 0, lr: 0 })
+  }
+
+  async function simpan() {
+    if (!editTarget.nama_jalan.trim() || !editTarget.latitude || !editTarget.longitude) {
+      return toast('Lengkapi nama jalan, latitude, dan longitude', true)
+    }
+    setMemproses(true)
+    const payload = {
+      nama_jalan: editTarget.nama_jalan.trim(),
+      latitude: Number(editTarget.latitude), longitude: Number(editTarget.longitude),
+      jumlah_laka: Number(editTarget.jumlah_laka) || 0, jumlah_point: Number(editTarget.jumlah_point) || 0,
+      md: Number(editTarget.md) || 0, lb: Number(editTarget.lb) || 0, lr: Number(editTarget.lr) || 0,
+    }
+    try {
+      if (editTarget.id) await perbaruiTitikRawan(editTarget.id, payload)
+      else await tambahTitikRawan(payload)
+      toast('Titik rawan tersimpan')
+      setEditTarget(null)
+      muat()
+    } catch (e) {
+      toast(e.message || 'Gagal menyimpan titik rawan', true)
+    } finally {
+      setMemproses(false)
+    }
+  }
+
+  async function hapus(id) {
+    try { await hapusTitikRawan(id); toast('Titik rawan dihapus'); muat() }
+    catch (e) { toast(e.message || 'Gagal menghapus titik rawan', true) }
+  }
+
+  return (
+    <div>
+      <div className="mb-3.5 flex items-center justify-between">
+        <div>
+          <h3 className="font-display text-[14.5px] font-semibold">Titik Rawan (Blackspot)</h3>
+          <p className="text-[11.5px] text-ink-soft">Tampil di panel "Titik rawan teratas" Papan Pemantauan.</p>
+        </div>
+        <button onClick={mulaiTambah} className="rounded-lg border border-brass px-3 py-1.5 text-[11.5px] font-semibold text-navy-950 hover:bg-brass/10">+ Tambah Titik Rawan</button>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+        <table className="w-full min-w-[560px] text-[12.5px]">
+          <thead><tr className="bg-paper-dim text-left text-[11px] uppercase text-ink-soft"><th className="px-3.5 py-2.5">Nama Jalan</th><th className="px-3.5 py-2.5">Kejadian</th><th className="px-3.5 py-2.5">MD/LB/LR</th><th className="px-3.5 py-2.5"></th></tr></thead>
+          <tbody>
+            {daftar.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-ink-soft">Belum ada titik rawan.</td></tr>}
+            {daftar.map((t) => (
+              <tr key={t.id} className="border-t border-paper-dim">
+                <td className="px-3.5 py-2.5">{t.nama_jalan}</td>
+                <td className="px-3.5 py-2.5">{t.jumlah_laka}</td>
+                <td className="px-3.5 py-2.5">{t.md}/{t.lb}/{t.lr}</td>
+                <td className="whitespace-nowrap px-3.5 py-2.5">
+                  <button onClick={() => setEditTarget(t)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Edit</button>
+                  <button onClick={() => hapus(t.id)} className="rounded-lg bg-bad-bg px-2 py-1 text-[11px] text-bad">Hapus</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setEditTarget(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-paper p-5 shadow-2xl">
+            <h3 className="mb-3.5 font-display text-[15px] font-semibold">{editTarget.id ? 'Edit' : 'Tambah'} Titik Rawan</h3>
+            <div className="mb-3.5 grid gap-3">
+              <input value={editTarget.nama_jalan} onChange={(e) => setEditTarget((f) => ({ ...f, nama_jalan: e.target.value }))} placeholder="Nama jalan / lokasi" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              <div className="grid grid-cols-2 gap-3">
+                <input value={editTarget.latitude} onChange={(e) => setEditTarget((f) => ({ ...f, latitude: e.target.value }))} placeholder="Latitude" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+                <input value={editTarget.longitude} onChange={(e) => setEditTarget((f) => ({ ...f, longitude: e.target.value }))} placeholder="Longitude" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" value={editTarget.jumlah_laka} onChange={(e) => setEditTarget((f) => ({ ...f, jumlah_laka: e.target.value }))} placeholder="Jumlah kejadian" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+                <input type="number" value={editTarget.jumlah_point} onChange={(e) => setEditTarget((f) => ({ ...f, jumlah_point: e.target.value }))} placeholder="Jumlah point" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <input type="number" value={editTarget.md} onChange={(e) => setEditTarget((f) => ({ ...f, md: e.target.value }))} placeholder="MD" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+                <input type="number" value={editTarget.lb} onChange={(e) => setEditTarget((f) => ({ ...f, lb: e.target.value }))} placeholder="LB" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+                <input type="number" value={editTarget.lr} onChange={(e) => setEditTarget((f) => ({ ...f, lr: e.target.value }))} placeholder="LR" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setEditTarget(null)} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Batal</button>
+              <button onClick={simpan} disabled={memproses} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white disabled:opacity-50">Simpan</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

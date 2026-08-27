@@ -7,10 +7,46 @@ export async function ambilZona() {
   return data
 }
 
+export async function tambahZona(nama, urutan_tampil) {
+  const { data, error } = await supabase.from('zona').insert({ nama, urutan_tampil }).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Anda tidak berhak menambah zona.')
+  return data
+}
+
+export async function perbaruiZona(id, patch) {
+  const { data, error } = await supabase.from('zona').update(patch).eq('id', id).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Anda tidak berhak mengubah zona ini.')
+}
+
+export async function hapusZona(id) {
+  const { error } = await supabase.from('zona').delete().eq('id', id)
+  if (error) throw new Error(error.message.includes('foreign key') ? 'Zona ini masih dipakai personel/laporan, tidak bisa dihapus.' : error.message)
+}
+
 export async function ambilRegu() {
   const { data, error } = await supabase.from('regu').select('*').order('nomor')
   if (error) throw error
   return data
+}
+
+export async function tambahRegu(nomor) {
+  const { data, error } = await supabase.from('regu').insert({ nomor }).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Anda tidak berhak menambah regu.')
+  return data
+}
+
+export async function perbaruiRegu(id, patch) {
+  const { data, error } = await supabase.from('regu').update(patch).eq('id', id).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Anda tidak berhak mengubah regu ini.')
+}
+
+export async function hapusRegu(id) {
+  const { error } = await supabase.from('regu').delete().eq('id', id)
+  if (error) throw new Error(error.message.includes('foreign key') ? 'Regu ini masih dipakai personel/laporan, tidak bisa dihapus.' : error.message)
 }
 
 export async function ambilPengguna() {
@@ -80,6 +116,24 @@ export async function ambilTitikRawan() {
   const { data, error } = await supabase.from('titik_rawan').select('*').order('jumlah_laka', { ascending: false })
   if (error) throw error
   return data
+}
+
+export async function tambahTitikRawan(payload) {
+  const { data, error } = await supabase.from('titik_rawan').insert(payload).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Anda tidak berhak menambah titik rawan.')
+  return data
+}
+
+export async function perbaruiTitikRawan(id, patch) {
+  const { data, error } = await supabase.from('titik_rawan').update(patch).eq('id', id).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Anda tidak berhak mengubah titik rawan ini.')
+}
+
+export async function hapusTitikRawan(id) {
+  const { error } = await supabase.from('titik_rawan').delete().eq('id', id)
+  if (error) throw error
 }
 
 // Sumber: Laporan Bulanan fisik Jan-Jul 2026 (E-PIKPOR.pdf, client) — angka
