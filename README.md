@@ -15,6 +15,7 @@ Stack: Vite + React 19 + Tailwind v4 + Supabase (Postgres, Auth, Storage) + `rea
    5. `20260826000004_seed_referensi.sql`
    6. `20260826000005_deteksi_sesi_lewat_18_jam.sql`
    7. `20260827000006_bootstrap_admin_pertama.sql`
+   8. `20260827000007_blackspot_dan_rekap_historis.sql`
 3. Buka **Edge Functions** → **Deploy a new function** → beri nama `admin-kelola-akun` → tempel isi `supabase/functions/admin-kelola-akun/index.ts`. (Env `SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` otomatis tersedia, tidak perlu diisi manual.)
 4. Buka **Project Settings → API**, catat **Project URL** dan **anon public key** untuk langkah berikutnya.
 5. Jalankan aplikasinya (lihat "Menjalankan lokal" di bawah, atau setelah di-deploy ke Vercel). Karena belum ada satu pun akun Administrator, halaman Login akan otomatis menampilkan layar **"Pengaturan Awal"** — isi nama, NRP, pangkat, dan kata sandi Anda sendiri di situ untuk mendaftar sebagai Administrator pertama (diproses lewat Edge Function di atas, tidak lewat email sama sekali, jadi tidak akan kena batas kirim email Supabase). **Tidak perlu bikin user manual lewat dashboard Supabase.** Setelah ini, layar itu tidak akan muncul lagi untuk siapa pun — akun-akun berikutnya (semua peran) dibuat lewat layar **Kelola Data** di dalam aplikasi oleh Administrator ini.
@@ -57,3 +58,10 @@ Modul yang sebelumnya tidak ada di mockup dan sudah dibangun di sini: **Roster P
 - **Notifikasi pra-piket** ("personel menerima pemberitahuan sebelum jam piket dimulai", Bagian 5.8) — perlu scheduled job yang membandingkan roster dengan jam sekarang, belum dibangun.
 
 Semuanya aman ditambahkan belakangan tanpa mengubah skema database yang sudah ada.
+
+## Data asli dari dokumen client
+
+- **Personel** — Kelola Data → Personel → tombol **"Impor dari Bagan Struktur"** sudah terisi 23 personel asli (Kanit, 2 Kasubnit, Banit tiap regu/zona) dari bagan "Daftar Personel Unit Gakkum". Dua personel eks-"Bamin" diberi peran Administrator sebagai usulan awal (lihat catatan di `src/lib/personelAsli.js`) — sunting dulu di layar impor kalau ternyata bukan itu maksudnya, sebelum akunnya benar-benar dibuat. Semua akun dalam satu sesi impor memakai satu kata sandi awal yang sama, yang Anda isi sendiri di layar itu.
+- **Titik rawan** — 4 lokasi blackspot asli (dengan koordinat) sudah masuk lewat migrasi `20260827000007`, tampil di Papan Pemantauan.
+- **Rekap historis** — angka Laporan Bulanan asli Januari–Juli 2026 (sebelum E-Pikpor berjalan) sudah masuk lewat migrasi yang sama, tampil di grafik rekapitulasi bulanan Papan Pemantauan (ditandai bulatan warna brass), menyambung otomatis ke angka yang dihitung dari laporan_kejadian begitu ada laporan yang benar-benar masuk lewat aplikasi mulai Agustus.
+- **Jadwal rotasi regu** (dari "JADWAL PIKET GAKKUM.docx") — pola C (Cadangan) / P (Piket) / LD (Lepas Dinas) bergilir 3 regu, belum diseed ke `roster_piket` karena kolom `disusun_oleh` di tabel itu mengharuskan sudah ada akun personel yang membuatnya — masukkan manual lewat halaman Roster setelah personel di atas diimpor, pakai pola ini sebagai acuan.

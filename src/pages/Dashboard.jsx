@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { ambilZona } from '../lib/referensiApi'
+import { ambilZona, ambilTitikRawan, ambilRekapHistoris } from '../lib/referensiApi'
 import { ambilJadwalHariIni } from '../lib/rosterApi'
 import { rekapBulanan } from '../lib/laporanKejadianApi'
 import { SASARAN_WAKTU_TANGGAP, bulanJakarta } from '../lib/format'
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [zonaCards, setZonaCards] = useState([])
   const [stats, setStats] = useState(null)
   const [rekap, setRekap] = useState([])
+  const [titikRawan, setTitikRawan] = useState([])
 
   useEffect(() => {
     async function muat() {
@@ -49,17 +50,31 @@ export default function Dashboard() {
       })
 
       const tahunIni = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', year: 'numeric' }).format(new Date()))
-      const dataKejadian = await rekapBulanan(tahunIni)
+      const [dataKejadian, historis, rawan] = await Promise.all([
+        rekapBulanan(tahunIni),
+        ambilRekapHistoris(tahunIni),
+        ambilTitikRawan(),
+      ])
+      const historisPerBulan = Object.fromEntries(historis.map((h) => [h.bulan - 1, h]))
       const perBulan = Array.from({ length: 12 }, (_, i) => {
+        // Bulan yang sudah punya angka historis (Laporan Bulanan fisik dari
+        // sebelum E-Pikpor berjalan) dipakai apa adanya; bulan lain dihitung
+        // langsung dari laporan_kejadian yang benar-benar masuk lewat aplikasi.
+        if (historisPerBulan[i]) {
+          const h = historisPerBulan[i]
+          return { bulan: NAMA_BULAN[i], jumlah: h.jumlah_kejadian, lewatTerima: 0, lewatTiba: 0, historis: true }
+        }
         const rows = dataKejadian.filter((r) => bulanJakarta(r.created_at) === i)
         const rentangLewat = (a, b, batas) => rows.filter((r) => r[a] && r[b] && (new Date(r[b]) - new Date(r[a])) / 1000 > batas).length
         return {
           bulan: NAMA_BULAN[i], jumlah: rows.length,
           lewatTerima: rentangLewat('w1', 'w2', SASARAN_WAKTU_TANGGAP.terima),
           lewatTiba: rentangLewat('w2', 'w3', SASARAN_WAKTU_TANGGAP.tiba),
+          historis: false,
         }
       })
       setRekap(perBulan)
+      setTitikRawan(rawan)
     }
     muat()
   }, [])
@@ -106,18 +121,43 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-line bg-white p-5">
-        <h3 className="mb-4 font-display text-[14.5px] font-semibold">Rekapitulasi bulanan {new Date().getFullYear()} <span className="ml-2 text-[11px] font-normal text-ink-soft">dihitung dari laporan_kejadian, termasuk yang melampaui sasaran waktu tanggap</span></h3>
-        {rekap.map((r) => (
-          <div key={r.bulan} className="mb-2.5 flex items-center gap-2.5 text-[12px]">
-            <div className="w-10 text-ink-soft">{r.bulan}</div>
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper-dim">
-              <div className="h-full rounded-full bg-navy-800" style={{ width: `${(r.jumlah / maxJumlah) * 100}%` }} />
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <h3 className="mb-1 font-display text-[14.5px] font-semibold">Rekapitulasi bulanan {new Date().getFullYear()}</h3>
+          <p className="mb-4 text-[11px] text-ink-soft">Bulan bertanda <span className="text-brass">●</span> pakai angka Laporan Bulanan fisik dari sebelum E-Pikpor berjalan; bulan lain dihitung langsung dari laporan yang masuk lewat aplikasi.</p>
+          {rekap.map((r) => (
+            <div key={r.bulan} className="mb-2.5 flex items-center gap-2.5 text-[12px]">
+              <div className="flex w-11 items-center gap-1 text-ink-soft">
+                {r.bulan}{r.historis && <span className="text-brass">●</span>}
+              </div>
+              <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper-dim">
+                <div className={`h-full rounded-full ${r.historis ? 'bg-brass' : 'bg-navy-800'}`} style={{ width: `${(r.jumlah / maxJumlah) * 100}%` }} />
+              </div>
+              <div className="w-6 text-right font-mono font-semibold">{r.jumlah}</div>
+              {(r.lewatTerima > 0 || r.lewatTiba > 0) && <div className="w-28 text-[10.5px] text-warn">{r.lewatTerima + r.lewatTiba} lampaui sasaran</div>}
             </div>
-            <div className="w-6 text-right font-mono font-semibold">{r.jumlah}</div>
-            {(r.lewatTerima > 0 || r.lewatTiba > 0) && <div className="w-28 text-[10.5px] text-warn">{r.lewatTerima + r.lewatTiba} lampaui sasaran</div>}
-          </div>
-        ))}
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <h3 className="mb-1 font-display text-[14.5px] font-semibold">Titik rawan teratas</h3>
+          <p className="mb-3 text-[11px] text-ink-soft">Berkas blackspot Satlantas Polrestabes Bandung</p>
+          {titikRawan.length === 0 && <div className="text-[12px] italic text-ink-soft">Belum ada data titik rawan.</div>}
+          {titikRawan.map((t) => (
+            <a
+              key={t.id}
+              href={`https://www.google.com/maps?q=${t.latitude},${t.longitude}`}
+              target="_blank" rel="noreferrer"
+              className="mb-2.5 flex gap-2.5 border-b border-dashed border-paper-dim pb-2.5 text-[12px] last:mb-0 last:border-none last:pb-0 hover:text-navy-900"
+            >
+              <div className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-bad" />
+              <div>
+                <div className="font-semibold">{t.nama_jalan}</div>
+                <div className="text-[10.5px] text-ink-soft">{t.jumlah_laka} kejadian · MD {t.md} · LB {t.lb} · LR {t.lr}</div>
+              </div>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   )

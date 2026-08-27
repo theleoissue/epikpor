@@ -7,6 +7,7 @@ import {
   nonaktifkanJenisKegiatan, nonaktifkanJenisKecelakaan, nonaktifkanTipeTabrakan,
 } from '../lib/referensiApi'
 import { LABEL_PERAN } from '../lib/menu'
+import ImporPersonelMassal from '../components/ImporPersonelMassal'
 
 const TABS = [['personel', 'Personel'], ['kegiatan', 'Jenis Kegiatan'], ['kecelakaan', 'Jenis & Tipe Kecelakaan']]
 const PERAN_OPT = Object.entries(LABEL_PERAN)
@@ -41,6 +42,7 @@ function TabPersonel() {
   const [regu, setRegu] = useState([])
   const [form, setForm] = useState({ nama: '', nrp: '', pangkat: '', gelar: '', peran_sistem: 'BANIT', zona_id: '', regu_id: '', password: '' })
   const [memproses, setMemproses] = useState(false)
+  const [imporTerbuka, setImporTerbuka] = useState(false)
 
   async function muat() {
     try { setDaftar(await ambilPengguna()) }
@@ -102,7 +104,10 @@ function TabPersonel() {
   return (
     <div>
       <div className="mb-5 rounded-2xl border border-line bg-white p-5">
-        <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Tambah Personel Baru</h3>
+        <div className="mb-3.5 flex items-center justify-between">
+          <h3 className="font-display text-[14.5px] font-semibold">Tambah Personel Baru</h3>
+          <button onClick={() => setImporTerbuka(true)} className="rounded-lg border border-brass px-3 py-1.5 text-[11.5px] font-semibold text-navy-950 hover:bg-brass/10">📋 Impor dari Bagan Struktur</button>
+        </div>
         <div className="mb-3 grid gap-3 sm:grid-cols-2">
           <input placeholder="Nama lengkap (dengan pangkat)" value={form.nama} onChange={(e) => setForm((f) => ({ ...f, nama: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
           <input placeholder="NRP" value={form.nrp} onChange={(e) => setForm((f) => ({ ...f, nrp: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
@@ -167,6 +172,15 @@ function TabPersonel() {
             </div>
           </div>
         </div>
+      )}
+
+      {imporTerbuka && (
+        <ImporPersonelMassal
+          zona={zona}
+          regu={regu}
+          onSelesai={muat}
+          onClose={() => setImporTerbuka(false)}
+        />
       )}
     </div>
   )

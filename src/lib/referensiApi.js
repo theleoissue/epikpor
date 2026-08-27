@@ -74,3 +74,20 @@ export async function resetPasswordPengguna(pengguna_id, password_baru) {
   if (error) throw new Error(await pesanErrorFungsi(error, 'Gagal reset kata sandi.'))
   return data
 }
+
+// Sumber: Blackspot 2025-2026.pdf (client) — dikelola lewat Kelola Data oleh Admin.
+export async function ambilTitikRawan() {
+  const { data, error } = await supabase.from('titik_rawan').select('*').order('jumlah_laka', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+// Sumber: Laporan Bulanan fisik Jan-Jul 2026 (E-PIKPOR.pdf, client) — angka
+// dari SEBELUM E-Pikpor berjalan, jadi disimpan terpisah dari rekap yang
+// dihitung Dashboard dari laporan_kejadian (yang cuma punya data sejak
+// aplikasi ini dipakai).
+export async function ambilRekapHistoris(tahun) {
+  const { data, error } = await supabase.from('rekap_historis').select('*').eq('tahun', tahun).order('bulan')
+  if (error) throw error
+  return data
+}
