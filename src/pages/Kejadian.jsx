@@ -7,7 +7,7 @@ import { ambilSesiAktifSaya } from '../lib/sesiPiketApi'
 import { kirimLaporanKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
 import { unggahFoto, getGeoPosition } from '../lib/storage'
 import { tambahAntrean } from '../lib/offlineQueue'
-import { SASARAN_WAKTU_TANGGAP } from '../lib/format'
+import { SASARAN_WAKTU_TANGGAP, keInputDatetimeLocal, dariInputDatetimeLocal } from '../lib/format'
 
 const STAMP_DEFS = [
   ['waktu_diterima', 'Laporan Diterima', 'Panggilan / laporan masuk'],
@@ -74,11 +74,25 @@ export default function Kejadian() {
     ambilSesiAktifSaya(profil.id).then(setSesi)
   }, [profil.id])
 
+  function judulStempel(key) {
+    return STAMP_DEFS.find(([k]) => k === key)?.[1] || key
+  }
+
   function tapStamp(key) {
     setW((prev) => {
-      if (prev[key]) { const { [key]: _hapus, ...rest } = prev; toast(`${key.toUpperCase()} dibatalkan`); return rest }
-      toast(`${key.toUpperCase()} tercatat`)
+      if (prev[key]) { const { [key]: _hapus, ...rest } = prev; toast(`${judulStempel(key)} dibatalkan`); return rest }
+      toast(`${judulStempel(key)} tercatat`)
       return { ...prev, [key]: new Date().toISOString() }
+    })
+  }
+
+  // Jam kejadian sering baru diisi beberapa waktu setelah peristiwanya —
+  // mengetuk saat itu juga akan mencatat jam pengisian, bukan jam kejadian.
+  // Karena itu tiap stempel tetap bisa disetel manual.
+  function setStempelManual(key, nilai) {
+    setW((prev) => {
+      if (!nilai) { const { [key]: _hapus, ...rest } = prev; return rest }
+      return { ...prev, [key]: dariInputDatetimeLocal(nilai) }
     })
   }
 
@@ -178,10 +192,25 @@ export default function Kejadian() {
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         {STAMP_DEFS.map(([key, kode, label]) => (
-          <div key={key} onClick={() => tapStamp(key)} className={`cursor-pointer rounded-xl border p-3 text-center ${w[key] ? 'border-[#BFE0CD] bg-ok-bg' : 'border-line bg-white'}`}>
-            <div className="font-display text-[13px] font-bold text-navy-900">{kode}</div>
-            <div className="my-1.5 min-h-[26px] text-[10.5px] text-ink-soft">{label}</div>
-            <div className={`font-mono text-[13px] font-bold ${w[key] ? 'text-ok' : 'text-ink-soft'}`}>{w[key] ? new Date(w[key]).toTimeString().slice(0, 8) : '—'}</div>
+          <div key={key} className={`rounded-xl border p-3 ${w[key] ? 'border-[#BFE0CD] bg-ok-bg' : 'border-line bg-white'}`}>
+            <div className="text-center font-display text-[13px] font-bold text-navy-900">{kode}</div>
+            <div className="my-1.5 min-h-[26px] text-center text-[10.5px] text-ink-soft">{label}</div>
+            <button
+              type="button"
+              onClick={() => tapStamp(key)}
+              className={`w-full rounded-lg border py-2 font-mono text-[13px] font-bold ${w[key] ? 'border-transparent text-ok' : 'border-line text-ink-soft hover:border-brass'}`}
+            >
+              {w[key] ? new Date(w[key]).toTimeString().slice(0, 8) : 'Ketuk saat terjadi'}
+            </button>
+            <label className="mt-1.5 block text-[10px] text-ink-soft">
+              atau atur manual
+              <input
+                type="datetime-local"
+                value={keInputDatetimeLocal(w[key])}
+                onChange={(e) => setStempelManual(key, e.target.value)}
+                className="mt-0.5 w-full rounded-lg border border-line bg-white px-2 py-1 text-[11.5px]"
+              />
+            </label>
           </div>
         ))}
       </div>
