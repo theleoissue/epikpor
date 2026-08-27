@@ -24,6 +24,21 @@ export function bulanJakarta(iso) {
   return Number(bagian) - 1
 }
 
+// Konversi ke/dari <input type="datetime-local"> memakai jam perangkat apa
+// adanya (bukan dipaksa Asia/Jakarta) — konsisten dengan cara stempel W1-W5
+// direkam pertama kali di Kejadian.jsx (new Date().toISOString() dari jam
+// perangkat), yang dalam praktiknya sudah WIB karena dipakai di lapangan.
+export function keInputDatetimeLocal(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+export function dariInputDatetimeLocal(v) {
+  return v ? new Date(v).toISOString() : null
+}
+
 export function fmtRupiah(n) {
   if (!n) return '-'
   return 'Rp ' + Number(n).toLocaleString('id-ID')

@@ -8,6 +8,7 @@ import {
   nonaktifkanJenisKegiatan, nonaktifkanJenisKecelakaan, nonaktifkanTipeTabrakan,
   tambahZona, perbaruiZona, hapusZona, tambahRegu, perbaruiRegu, hapusRegu,
   ambilTitikRawan, tambahTitikRawan, perbaruiTitikRawan, hapusTitikRawan,
+  ambilLogImpersonasi,
 } from '../lib/referensiApi'
 import { LABEL_PERAN } from '../lib/menu'
 import { mulaiImpersonasi } from '../lib/auth'
@@ -79,13 +80,19 @@ function TabPersonel() {
   const [form, setForm] = useState({ nama: '', nrp: '', pangkat: '', gelar: '', peran_sistem: 'BANIT', zona_id: '', regu_id: '', password: '' })
   const [memproses, setMemproses] = useState(false)
   const [imporTerbuka, setImporTerbuka] = useState(false)
+  const [logImpersonasi, setLogImpersonasi] = useState([])
   const navigate = useNavigate()
 
   async function muat() {
     try { setDaftar(await ambilPengguna()) }
     catch (e) { toast(e.message || 'Gagal memuat daftar personel', true) }
   }
-  useEffect(() => { muat(); ambilZona().then(setZona); ambilRegu().then(setRegu) }, [])
+  useEffect(() => {
+    muat(); ambilZona().then(setZona); ambilRegu().then(setRegu)
+    // Diam-diam kalau gagal (mis. migrasi RLS-nya belum dijalankan) --
+    // panel ini cuma pelengkap, tidak boleh mengganggu tab Personel yang utama.
+    ambilLogImpersonasi().then(setLogImpersonasi).catch(() => {})
+  }, [])
 
   async function masukSebagai(p) {
     try {
@@ -239,6 +246,20 @@ function TabPersonel() {
           </div>
         ))}
       </div>
+
+      {logImpersonasi.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-line bg-white p-4.5">
+          <h3 className="mb-2.5 font-display text-[13.5px] font-semibold">Riwayat Masuk Sebagai</h3>
+          <div className="max-h-56 space-y-1.5 overflow-y-auto text-[12px]">
+            {logImpersonasi.map((l) => (
+              <div key={l.id} className="flex justify-between gap-3 border-b border-dashed border-paper-dim py-1.5 last:border-none">
+                <span>{l.aksi}</span>
+                <span className="flex-shrink-0 text-[11px] text-ink-soft">{new Date(l.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setEditTarget(null)}>

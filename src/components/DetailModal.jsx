@@ -3,9 +3,9 @@ import { useAuth } from '../lib/auth'
 import { useToast } from '../components/Toast'
 import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
-import { fmtTime, fmtDate, fmtRupiah } from '../lib/format'
+import { fmtTime, fmtDate, fmtRupiah, keInputDatetimeLocal, dariInputDatetimeLocal } from '../lib/format'
 import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan } from '../lib/laporanKegiatanApi'
-import { ambilSatuKejadian, verifikasiLaporanKejadian, ambilLogKejadian } from '../lib/laporanKejadianApi'
+import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, ambilLogKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
 import { buildLaporanKejadianWA } from '../lib/waReport'
@@ -25,6 +25,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const [editMode, setEditMode] = useState(false)
   const [editLokasi, setEditLokasi] = useState('')
   const [editKeterangan, setEditKeterangan] = useState('')
+  const [editW, setEditW] = useState({ w1: '', w2: '', w3: '', w4: '', w5: '' })
   const [catatanKecuali, setCatatanKecuali] = useState('')
 
   async function muat() {
@@ -58,14 +59,26 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
 
   function mulaiEdit() {
     setEditLokasi(data.lokasi || '')
-    setEditKeterangan(data.keterangan || data.kronologis_saat || '')
+    setEditKeterangan(data.keterangan || '')
+    setEditW({
+      w1: keInputDatetimeLocal(data.w1), w2: keInputDatetimeLocal(data.w2), w3: keInputDatetimeLocal(data.w3),
+      w4: keInputDatetimeLocal(data.w4), w5: keInputDatetimeLocal(data.w5),
+    })
     setEditMode(true)
   }
 
   async function simpanEdit() {
     setMemproses(true)
     try {
-      if (tipe === 'kegiatan') await perbaruiLaporanKegiatan(id, { lokasi: editLokasi.trim(), keterangan: editKeterangan.trim() })
+      if (tipe === 'kegiatan') {
+        await perbaruiLaporanKegiatan(id, { lokasi: editLokasi.trim(), keterangan: editKeterangan.trim() })
+      } else if (tipe === 'kejadian') {
+        await perbaruiLaporanKejadian(id, {
+          lokasi: editLokasi.trim(),
+          w1: dariInputDatetimeLocal(editW.w1), w2: dariInputDatetimeLocal(editW.w2), w3: dariInputDatetimeLocal(editW.w3),
+          w4: dariInputDatetimeLocal(editW.w4), w5: dariInputDatetimeLocal(editW.w5),
+        })
+      }
       toast('Perubahan tersimpan')
       setEditMode(false)
       muat(); onUbah?.()
@@ -125,7 +138,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const bisaVerifikasi = tipe !== 'sesi' && data.status === 'MENUNGGU_VERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   const bisaVerifikasiSesi = tipe === 'sesi' && data.status === 'MENUNGGU_VERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   const bisaKecualikan = tipe === 'sesi' && String(data.status).startsWith('PELANGGARAN') && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
-  const bisaEdit = tipe === 'kegiatan' && data.pelapor_id === profil.id
+  const bisaEdit = (tipe === 'kegiatan' || tipe === 'kejadian') && data.pelapor_id === profil.id
 
   return (
     <>
@@ -188,7 +201,27 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
           {editMode ? (
             <div className="mb-4 space-y-2 rounded-lg border border-brass bg-white p-3">
               <input value={editLokasi} onChange={(e) => setEditLokasi(e.target.value)} placeholder="Lokasi" className="w-full rounded-lg border border-line px-3 py-2 text-[12.5px]" />
-              <textarea value={editKeterangan} onChange={(e) => setEditKeterangan(e.target.value)} placeholder="Keterangan" rows={3} className="w-full rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              {tipe === 'kegiatan' && (
+                <textarea value={editKeterangan} onChange={(e) => setEditKeterangan(e.target.value)} placeholder="Keterangan" rows={3} className="w-full rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              )}
+              {tipe === 'kejadian' && (
+                <div>
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Stempel waktu W1–W5</div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {['w1', 'w2', 'w3', 'w4', 'w5'].map((k) => (
+                      <label key={k} className="text-[11px] text-ink-soft">
+                        {k.toUpperCase()}
+                        <input
+                          type="datetime-local"
+                          value={editW[k]}
+                          onChange={(e) => setEditW((prev) => ({ ...prev, [k]: e.target.value }))}
+                          className="mt-0.5 w-full rounded-lg border border-line px-2 py-1.5 text-[12px]"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2">
                 <button onClick={simpanEdit} disabled={memproses} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white disabled:opacity-50">Simpan</button>
                 <button onClick={() => setEditMode(false)} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Batal</button>

@@ -140,6 +140,20 @@ export async function hapusTitikRawan(id) {
 // dari SEBELUM E-Pikpor berjalan, jadi disimpan terpisah dari rekap yang
 // dihitung Dashboard dari laporan_kejadian (yang cuma punya data sejak
 // aplikasi ini dipakai).
+// Jejak "Admin X masuk sebagai Y" — ditulis admin-kelola-akun (aksi
+// 'impersonate') lewat service role. Nama target sudah ada di teks `aksi`
+// itu sendiri, jadi tidak perlu join tambahan ke pengguna.
+export async function ambilLogImpersonasi() {
+  const { data, error } = await supabase
+    .from('log_aktivitas')
+    .select('id, aksi, created_at, aktor:aktor_id(nama, pangkat)')
+    .eq('entity_type', 'PENGGUNA')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data
+}
+
 export async function ambilRekapHistoris(tahun) {
   const { data, error } = await supabase.from('rekap_historis').select('*').eq('tahun', tahun).order('bulan')
   if (error) throw error
