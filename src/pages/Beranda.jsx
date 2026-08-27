@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { useToast } from '../components/Toast'
-import KameraCapture from '../components/KameraCapture'
 import { ambilSesiAktifSaya, bukaSesi, tutupSesi } from '../lib/sesiPiketApi'
 import { unggahFoto, getGeoPosition } from '../lib/storage'
 import { ambilLaporanKegiatanSaya } from '../lib/laporanKegiatanApi'
@@ -19,14 +18,6 @@ export default function Beranda() {
   const [serahTerima, setSerahTerima] = useState(null)
   const [memproses, setMemproses] = useState(false)
   const [laporanTerbaru, setLaporanTerbaru] = useState([])
-  const [kameraAktif, setKameraAktif] = useState(null) // null | 'swafoto' | 'lokasi' | 'serahTerima'
-
-  function ambilFotoKamera(blob) {
-    if (kameraAktif === 'swafoto') setSwafoto(blob)
-    else if (kameraAktif === 'lokasi') setLokasi(blob)
-    else if (kameraAktif === 'serahTerima') setSerahTerima(blob)
-    setKameraAktif(null)
-  }
 
   async function muat() {
     const s = await ambilSesiAktifSaya(profil.id)
@@ -111,12 +102,10 @@ export default function Beranda() {
             <div className="flex items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-[#232f47] py-4 text-[12px] text-[#B9C0D3]">✓ Lokasi tersimpan</div>
           </div>
 
-          <button
-            onClick={() => setKameraAktif('serahTerima')}
-            className={`mt-3 block w-full cursor-pointer rounded-lg border-[1.5px] border-dashed py-4 text-center text-[11.5px] ${serahTerima ? 'border-white/15 bg-[#232f47] text-[#B9C0D3]' : 'border-white/30 text-[#9AA4BE]'}`}
-          >
+          <label className={`mt-3 block cursor-pointer rounded-lg border-[1.5px] border-dashed py-4 text-center text-[11.5px] ${serahTerima ? 'border-white/15 bg-[#232f47] text-[#B9C0D3]' : 'border-white/30 text-[#9AA4BE]'}`}>
             {serahTerima ? '✓ Foto serah terima tersimpan' : '📷 Foto serah terima (wajib sebelum tutup)'}
-          </button>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files[0] && setSerahTerima(e.target.files[0])} />
+          </label>
 
           <button
             disabled={!serahTerima || memproses}
@@ -133,18 +122,14 @@ export default function Beranda() {
           <div className="mt-1 text-[12px] text-white/65">Ambil swafoto dan foto lokasi untuk membuka sesi.</div>
 
           <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <button
-              onClick={() => setKameraAktif('swafoto')}
-              className={`cursor-pointer rounded-lg border-[1.5px] border-dashed py-6 text-center text-[11.5px] ${swafoto ? 'border-white/15 bg-[#232f47] text-[#B9C0D3]' : 'border-white/30 text-[#9AA4BE]'}`}
-            >
+            <label className={`cursor-pointer rounded-lg border-[1.5px] border-dashed py-6 text-center text-[11.5px] ${swafoto ? 'border-white/15 bg-[#232f47] text-[#B9C0D3]' : 'border-white/30 text-[#9AA4BE]'}`}>
               {swafoto ? '✓ Swafoto tersimpan' : (<><div className="mb-1.5 text-xl">📷</div>Swafoto petugas</>)}
-            </button>
-            <button
-              onClick={() => setKameraAktif('lokasi')}
-              className={`cursor-pointer rounded-lg border-[1.5px] border-dashed py-6 text-center text-[11.5px] ${lokasi ? 'border-white/15 bg-[#232f47] text-[#B9C0D3]' : 'border-white/30 text-[#9AA4BE]'}`}
-            >
+              <input type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => e.target.files[0] && setSwafoto(e.target.files[0])} />
+            </label>
+            <label className={`cursor-pointer rounded-lg border-[1.5px] border-dashed py-6 text-center text-[11.5px] ${lokasi ? 'border-white/15 bg-[#232f47] text-[#B9C0D3]' : 'border-white/30 text-[#9AA4BE]'}`}>
               {lokasi ? '✓ Lokasi tersimpan' : (<><div className="mb-1.5 text-xl">📷</div>Foto lokasi/pos</>)}
-            </button>
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files[0] && setLokasi(e.target.files[0])} />
+            </label>
           </div>
 
           <button
@@ -178,14 +163,6 @@ export default function Beranda() {
           ))}
         </div>
       </div>
-
-      {kameraAktif && (
-        <KameraCapture
-          facingMode={kameraAktif === 'swafoto' ? 'user' : 'environment'}
-          onAmbil={ambilFotoKamera}
-          onBatal={() => setKameraAktif(null)}
-        />
-      )}
     </div>
   )
 }

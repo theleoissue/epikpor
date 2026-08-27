@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { useToast } from '../components/Toast'
-import KameraCapture from '../components/KameraCapture'
 import { ambilJenisKecelakaan, ambilTipeTabrakan } from '../lib/referensiApi'
 import { ambilSesiAktifSaya } from '../lib/sesiPiketApi'
 import { kirimLaporanKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
@@ -68,7 +67,6 @@ export default function Kejadian() {
   const [kendaraan, setKendaraan] = useState([])
   const [orang, setOrang] = useState([])
   const [foto, setFoto] = useState([])
-  const [kameraTerbuka, setKameraTerbuka] = useState(false)
   const idSementaraRef = useRef(1)
 
   useEffect(() => {
@@ -367,9 +365,10 @@ export default function Kejadian() {
       <div className="rounded-[14px] border border-line bg-white p-5">
         <h3 className="mb-3 font-display text-[14.5px] font-semibold">Lampiran Foto TKP</h3>
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => setKameraTerbuka(true)} className="rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
+          <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
             📷 Ambil foto langsung
-          </button>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { setFoto((f) => [...f, ...Array.from(e.target.files)]); e.target.value = '' }} />
+          </label>
           <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
             🖼️ Pilih dari galeri
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { setFoto((f) => [...f, ...Array.from(e.target.files)]); e.target.value = '' }} />
@@ -392,14 +391,6 @@ export default function Kejadian() {
           <button onClick={resetForm} className="rounded-[10px] border border-line px-4.5 py-3 text-[13px] font-semibold text-ink-soft">Bersihkan Semua</button>
         </div>
       </div>
-
-      {kameraTerbuka && (
-        <KameraCapture
-          facingMode="environment"
-          onAmbil={(blob) => { setFoto((f) => [...f, blob]); setKameraTerbuka(false) }}
-          onBatal={() => setKameraTerbuka(false)}
-        />
-      )}
     </div>
   )
 }
