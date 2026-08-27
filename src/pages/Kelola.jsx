@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import {
   ambilPengguna, ambilZona, ambilRegu, buatAkunPengguna, perbaruiPengguna, resetPasswordPengguna,
@@ -78,6 +79,7 @@ function TabPersonel() {
   const [form, setForm] = useState({ nama: '', nrp: '', pangkat: '', gelar: '', peran_sistem: 'BANIT', zona_id: '', regu_id: '', password: '' })
   const [memproses, setMemproses] = useState(false)
   const [imporTerbuka, setImporTerbuka] = useState(false)
+  const navigate = useNavigate()
 
   async function muat() {
     try { setDaftar(await ambilPengguna()) }
@@ -89,6 +91,7 @@ function TabPersonel() {
     try {
       await mulaiImpersonasi(p.id)
       toast(`Masuk sebagai ${p.nama}`)
+      navigate('/', { replace: true })
     } catch (e) {
       toast(e.message || 'Gagal masuk sebagai akun ini', true)
     }
