@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { useToast } from '../components/Toast'
+import KameraCapture from '../components/KameraCapture'
 import { ambilJenisKegiatan } from '../lib/referensiApi'
 import { ambilSesiAktifSaya } from '../lib/sesiPiketApi'
 import { kirimLaporanKegiatan, tambahLampiranKegiatan } from '../lib/laporanKegiatanApi'
@@ -17,6 +18,7 @@ export default function LaporKegiatan() {
   const [lokasi, setLokasi] = useState('')
   const [keterangan, setKeterangan] = useState('')
   const [foto, setFoto] = useState([])
+  const [kameraTerbuka, setKameraTerbuka] = useState(false)
   const [sesi, setSesi] = useState(null)
   const [mengirim, setMengirim] = useState(false)
   const dibukaPada = useRef(Date.now())
@@ -139,10 +141,15 @@ export default function LaporKegiatan() {
 
         <div className="mb-4">
           <label className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft">Lampiran foto (opsional)</label>
-          <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
-            📷 Ketuk untuk memilih satu atau beberapa foto
-            <input type="file" accept="image/*" multiple className="hidden" onChange={tambahFoto} />
-          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setKameraTerbuka(true)} className="rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
+              📷 Ambil foto langsung
+            </button>
+            <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
+              🖼️ Pilih dari galeri
+              <input type="file" accept="image/*" multiple className="hidden" onChange={tambahFoto} />
+            </label>
+          </div>
           {foto.length > 0 && (
             <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
               {foto.map((f, i) => (
@@ -162,6 +169,14 @@ export default function LaporKegiatan() {
           <button onClick={resetForm} className="rounded-[10px] border border-line px-4.5 py-3 text-[13px] font-semibold text-ink-soft">Bersihkan</button>
         </div>
       </div>
+
+      {kameraTerbuka && (
+        <KameraCapture
+          facingMode="environment"
+          onAmbil={(blob) => { setFoto((f) => [...f, blob]); setKameraTerbuka(false) }}
+          onBatal={() => setKameraTerbuka(false)}
+        />
+      )}
     </div>
   )
 }
