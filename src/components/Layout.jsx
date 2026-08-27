@@ -2,7 +2,8 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import NotifBell from './NotifBell'
 import { menuUntukPeran, LABEL_PERAN } from '../lib/menu'
-import { keluar } from '../lib/auth'
+import { keluar, sedangImpersonasi, kembaliDariImpersonasi } from '../lib/auth'
+import { useToast } from './Toast'
 import { ambilLaporanKegiatanMenunggu } from '../lib/laporanKegiatanApi'
 import { ambilLaporanKejadianMenunggu } from '../lib/laporanKejadianApi'
 import { ambilSesiButuhTindakan } from '../lib/sesiPiketApi'
@@ -31,14 +32,28 @@ function useJumlahMenungguVerifikasi(peran) {
 }
 
 export default function Layout({ profil }) {
+  const toast = useToast()
   const [menuMobileTerbuka, setMenuMobileTerbuka] = useState(false)
   const item = menuUntukPeran(profil.peran_sistem)
   const namaTampil = profil.pangkat ? `${profil.pangkat} ${profil.nama}` : profil.nama
   const inisial = profil.nama.split(' ').slice(-1)[0].slice(0, 2).toUpperCase()
   const jumlahMenunggu = useJumlahMenungguVerifikasi(profil.peran_sistem)
+  const impersonasi = sedangImpersonasi()
+
+  async function kembaliKeAdmin() {
+    try { await kembaliDariImpersonasi() }
+    catch (e) { toast(e.message || 'Gagal kembali ke akun Admin', true) }
+  }
 
   return (
-    <div className="grid min-h-screen grid-rows-[60px_1fr] md:grid-cols-[220px_1fr] md:grid-rows-[60px_1fr]">
+    <div className="flex min-h-screen flex-col">
+      {impersonasi && (
+        <div className="flex items-center justify-between gap-3 bg-warn px-4 py-2 text-[12.5px] font-semibold text-navy-950">
+          <span>🎭 Sedang masuk sebagai {namaTampil} ({LABEL_PERAN[profil.peran_sistem]})</span>
+          <button onClick={kembaliKeAdmin} className="rounded-lg bg-navy-950 px-3 py-1.5 text-[11.5px] font-semibold text-white hover:bg-navy-800">← Kembali ke akun Admin</button>
+        </div>
+      )}
+      <div className="grid flex-1 grid-rows-[60px_1fr] md:grid-cols-[220px_1fr] md:grid-rows-[60px_1fr]">
       <div className="flex items-center justify-between border-b-[3px] border-brass bg-navy-950 px-4 text-white md:col-span-2">
         <div className="flex items-center gap-2.5">
           <button className="md:hidden text-xl" onClick={() => setMenuMobileTerbuka((v) => !v)}>☰</button>
@@ -87,6 +102,7 @@ export default function Layout({ profil }) {
       <main className="overflow-y-auto p-4 pb-16 md:p-7">
         <Outlet />
       </main>
+      </div>
     </div>
   )
 }

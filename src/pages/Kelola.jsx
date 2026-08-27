@@ -9,6 +9,7 @@ import {
   ambilTitikRawan, tambahTitikRawan, perbaruiTitikRawan, hapusTitikRawan,
 } from '../lib/referensiApi'
 import { LABEL_PERAN } from '../lib/menu'
+import { mulaiImpersonasi } from '../lib/auth'
 import ImporPersonelMassal from '../components/ImporPersonelMassal'
 
 const TABS = [
@@ -83,6 +84,15 @@ function TabPersonel() {
     catch (e) { toast(e.message || 'Gagal memuat daftar personel', true) }
   }
   useEffect(() => { muat(); ambilZona().then(setZona); ambilRegu().then(setRegu) }, [])
+
+  async function masukSebagai(p) {
+    try {
+      await mulaiImpersonasi(p.id)
+      toast(`Masuk sebagai ${p.nama}`)
+    } catch (e) {
+      toast(e.message || 'Gagal masuk sebagai akun ini', true)
+    }
+  }
 
   async function tambahAkun() {
     if (!form.nama || !form.nrp || !form.password) return toast('Lengkapi nama, NRP, dan kata sandi awal', true)
@@ -216,7 +226,8 @@ function TabPersonel() {
                     <td className="whitespace-nowrap px-3.5 py-2.5">
                       <button onClick={() => mulaiEdit(p)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Edit</button>
                       <button onClick={() => toggleAktif(p)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">{p.status_aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                      <button onClick={() => { setResetTarget(p); setSandiBaru('') }} className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Reset Sandi</button>
+                      <button onClick={() => { setResetTarget(p); setSandiBaru('') }} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Reset Sandi</button>
+                      <button onClick={() => masukSebagai(p)} className="rounded-lg border border-brass px-2 py-1 text-[11px] font-semibold text-navy-950 hover:bg-brass/10">Masuk sebagai</button>
                     </td>
                   </tr>
                 ))}

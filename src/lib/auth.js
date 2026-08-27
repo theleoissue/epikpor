@@ -77,3 +77,41 @@ export async function pesanErrorFungsi(error, fallback = 'Terjadi kesalahan.') {
 export async function ambilProfilSaya(authUserId) {
   return supabase.from('pengguna').select('*, zona:zona_id(nama), regu:regu_id(nomor)').eq('id', authUserId).single()
 }
+
+// "Masuk sebagai" — Admin membuka sesi sebagai akun lain tanpa tahu kata
+// sandinya, buat keperluan demo/dukungan. Sesi Admin yang asli disimpan di
+// sessionStorage (khusus tab ini, tidak ikut tersalin ke tab lain) supaya
+// bisa dikembalikan lewat kembaliDariImpersonasi() tanpa perlu login ulang.
+const KUNCI_SESI_ASLI = 'epikpor_sesi_admin_asli'
+
+export async function mulaiImpersonasi(pengguna_id) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Sesi tidak ditemukan.')
+
+  const { data, error } = await supabase.functions.invoke('admin-kelola-akun', {
+    body: { action: 'impersonate', pengguna_id },
+  })
+  if (error) throw new Error(await pesanErrorFungsi(error, 'Gagal masuk sebagai akun ini.'))
+
+  const { error: otpError } = await supabase.auth.verifyOtp({
+    token_hash: data.token_hash, type: 'magiclink',
+  })
+  if (otpError) throw otpError
+
+  sessionStorage.setItem(KUNCI_SESI_ASLI, JSON.stringify({
+    access_token: session.access_token, refresh_token: session.refresh_token,
+  }))
+}
+
+export function sedangImpersonasi() {
+  return sessionStorage.getItem(KUNCI_SESI_ASLI) !== null
+}
+
+export async function kembaliDariImpersonasi() {
+  const disimpan = sessionStorage.getItem(KUNCI_SESI_ASLI)
+  if (!disimpan) return
+  const { access_token, refresh_token } = JSON.parse(disimpan)
+  sessionStorage.removeItem(KUNCI_SESI_ASLI)
+  const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+  if (error) throw error
+}

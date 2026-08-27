@@ -125,6 +125,30 @@ Deno.serve(async (req) => {
       return json({ ok: true })
     }
 
+    // "Masuk sebagai": Admin bisa membuka sesi sebagai akun lain tanpa tahu
+    // kata sandinya, lewat magic link yang dibuat server (service role) --
+    // dicatat ke log_aktivitas supaya tetap terlacak siapa masuk sebagai
+    // siapa dan kapan. Frontend menukar token ini jadi sesi aktif lewat
+    // supabase.auth.verifyOtp({token_hash, type:'magiclink'}).
+    if (body.action === 'impersonate') {
+      const { pengguna_id } = body
+      if (!pengguna_id) return json({ error: 'Lengkapi pengguna_id.' }, 400)
+      const { data: target } = await admin.from('pengguna').select('nrp, nama').eq('id', pengguna_id).single()
+      if (!target) return json({ error: 'Personel tidak ditemukan.' }, 404)
+
+      const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
+        type: 'magiclink', email: emailDariNrp(target.nrp),
+      })
+      if (linkErr) return json({ error: linkErr.message }, 400)
+
+      await admin.from('log_aktivitas').insert({
+        entity_type: 'PENGGUNA', entity_id: pengguna_id, aktor_id: user.id,
+        aksi: `Admin masuk sebagai ${target.nama}`, detail: null,
+      })
+
+      return json({ ok: true, email: emailDariNrp(target.nrp), token_hash: link.properties.hashed_token })
+    }
+
     return json({ error: 'Aksi tidak dikenal.' }, 400)
   } catch (e) {
     return json({ error: String(e) }, 500)
