@@ -30,6 +30,14 @@ export default defineConfig({
         // bukan lewat Workbox — Workbox di sini hanya untuk shell aplikasi (JS/CSS) supaya
         // bisa dibuka lagi tanpa sinyal, bukan untuk menyimpan data laporan.
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Tanpa dua opsi ini, service worker versi baru cuma "menunggu" sampai
+        // SELURUH tab aplikasi ditutup — akibatnya personel yang tabnya tidak
+        // pernah benar-benar ditutup (kasus lazim di HP) tetap dilayani berkas
+        // lama dari cache setelah aplikasi diperbarui, dan mengira perbaikannya
+        // tidak pernah sampai. Dengan ini, versi baru langsung mengambil alih.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
