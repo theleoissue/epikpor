@@ -17,6 +17,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const toast = useToast()
   const [data, setData] = useState(null)
   const [fotoUrls, setFotoUrls] = useState([])
+  const [grupFoto, setGrupFoto] = useState(null) // khusus sesi: foto dipisah per tahap (masuk/keluar)
   const [komentar, setKomentar] = useState([])
   const [log, setLog] = useState([])
   const [teksKomentar, setTeksKomentar] = useState('')
@@ -46,8 +47,28 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       } else {
         const x = await ambilSatuSesi(id)
         setData(x)
-        const paths = [x.foto_swafoto_path, x.foto_lokasi_path, x.foto_serah_terima_path].filter(Boolean)
-        setFotoUrls((await Promise.all(paths.map((p) => urlTertandaTangan('foto-sesi', p)))).filter(Boolean))
+        // Foto sesi dikelompokkan per tahap supaya jelas mana bukti saat masuk
+        // piket dan mana bukti saat serah terima — Lightbox tetap memakai satu
+        // larik datar, jadi tiap foto menyimpan indeksnya sendiri.
+        const tahap = [
+          ['Sesi Masuk', [['Swafoto petugas', x.foto_swafoto_path], ['Foto lokasi / pos', x.foto_lokasi_path]]],
+          ['Sesi Keluar', [['Foto serah terima', x.foto_serah_terima_path]]],
+        ]
+        const datar = []
+        const grup = []
+        for (const [judul, item] of tahap) {
+          const isi = []
+          for (const [label, path] of item) {
+            if (!path) continue
+            const url = await urlTertandaTangan('foto-sesi', path)
+            if (!url) continue
+            isi.push({ label, url, indeks: datar.length })
+            datar.push(url)
+          }
+          if (isi.length) grup.push({ judul, isi })
+        }
+        setFotoUrls(datar)
+        setGrupFoto(grup)
         setLog(await ambilLogSesi(id))
       }
     } catch (e) {
@@ -139,6 +160,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const bisaVerifikasiSesi = tipe === 'sesi' && data.status === 'MENUNGGU_VERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   const bisaKecualikan = tipe === 'sesi' && String(data.status).startsWith('PELANGGARAN') && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   const bisaEdit = (tipe === 'kegiatan' || tipe === 'kejadian') && data.pelapor_id === profil.id
+  // Koordinat direkam otomatis saat sesi dibuka / laporan dikirim (lihat
+  // getGeoPosition di storage.js) — bisa null kalau personel menolak izin
+  // lokasi atau GPS-nya tidak terkunci saat itu.
+  const koordinat = tipe === 'sesi' ? data.koordinat_buka : data.koordinat
+  const adaKoordinat = koordinat && koordinat.lat != null && koordinat.lng != null
 
   return (
     <>
@@ -238,20 +264,43 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
             )
           )}
 
-          <div className="mb-4">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Lampiran foto</div>
-            {fotoUrls.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-line bg-white p-6 text-center text-[12px] text-ink-soft">📷 Tidak ada foto tersimpan</div>
-            ) : (
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-                {fotoUrls.map((u, i) => (
-                  <button key={i} onClick={() => setLightboxAwal(i)} className="aspect-square overflow-hidden rounded-lg border border-line">
-                    <img src={u} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {tipe === 'sesi' ? (
+            <div className="mb-4 space-y-4">
+              {(!grupFoto || grupFoto.length === 0) && (
+                <div className="rounded-lg border border-dashed border-line bg-white p-6 text-center text-[12px] text-ink-soft">📷 Tidak ada foto tersimpan</div>
+              )}
+              {(grupFoto || []).map((g) => (
+                <div key={g.judul}>
+                  <div className="mb-2 border-b border-line pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{g.judul}</div>
+                  <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+                    {g.isi.map((f) => (
+                      <button key={f.indeks} onClick={() => setLightboxAwal(f.indeks)} className="text-left">
+                        <div className="aspect-square overflow-hidden rounded-lg border border-line">
+                          <img src={f.url} alt={f.label} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="mt-1 text-[10.5px] leading-tight text-ink-soft">{f.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mb-4">
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Lampiran foto</div>
+              {fotoUrls.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-line bg-white p-6 text-center text-[12px] text-ink-soft">📷 Tidak ada foto tersimpan</div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                  {fotoUrls.map((u, i) => (
+                    <button key={i} onClick={() => setLightboxAwal(i)} className="aspect-square overflow-hidden rounded-lg border border-line">
+                      <img src={u} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {(tipe === 'kejadian' || tipe === 'sesi') && log.length > 0 && (
             <div className="mb-4">
@@ -294,6 +343,15 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
               {String(data.status).replaceAll('_', ' ')}
             </span>
             <div className="flex flex-wrap gap-2">
+              {adaKoordinat && (
+                <a
+                  href={`https://www.google.com/maps?q=${koordinat.lat},${koordinat.lng}`}
+                  target="_blank" rel="noreferrer"
+                  className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold hover:border-brass"
+                >
+                  📍 Lihat Lokasi
+                </a>
+              )}
               {tipe === 'kejadian' && <button onClick={salinWA} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">💬 Laporan WA</button>}
               {bisaEdit && !editMode && data.status === 'MENUNGGU_VERIFIKASI' && <button onClick={mulaiEdit} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">✎ Edit</button>}
               {bisaKecualikan && <button onClick={kecualikan} disabled={memproses} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Simpan &amp; Kecualikan</button>}
