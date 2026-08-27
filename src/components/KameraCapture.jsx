@@ -15,7 +15,15 @@ export default function KameraCapture({ facingMode = 'user', onAmbil, onBatal })
 
   useEffect(() => {
     let dibatalkan = false
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode }, audio: false })
+    // Tanpa width/height, browser sering pilih resolusi rendah (mis. 640x480)
+    // secara default -- diminta eksplisit resolusi tinggi ("ideal", bukan
+    // wajib) supaya hasil fotonya setajam mungkin, sebanding dengan kamera
+    // bawaan HP. Browser otomatis menurunkan ke resolusi maksimal yang
+    // didukung kamera kalau device-nya tidak sanggup 4K.
+    navigator.mediaDevices?.getUserMedia({
+      video: { facingMode, width: { ideal: 3840 }, height: { ideal: 2160 } },
+      audio: false,
+    })
       .then((stream) => {
         if (dibatalkan) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
