@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { pesanErrorFungsi } from './auth'
 
 export async function ambilZona() {
   const { data, error } = await supabase.from('zona').select('*').order('urutan_tampil')
@@ -59,31 +60,17 @@ export async function perbaruiPengguna(id, patch) {
 }
 
 export async function buatAkunPengguna(payload) {
-  const { data: sesi } = await supabase.auth.getSession()
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-kelola-akun`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${sesi.session.access_token}`,
-    },
-    body: JSON.stringify({ action: 'buat', ...payload }),
+  const { data, error } = await supabase.functions.invoke('admin-kelola-akun', {
+    body: { action: 'buat', ...payload },
   })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Gagal membuat akun.')
-  return json
+  if (error) throw new Error(await pesanErrorFungsi(error, 'Gagal membuat akun.'))
+  return data
 }
 
 export async function resetPasswordPengguna(pengguna_id, password_baru) {
-  const { data: sesi } = await supabase.auth.getSession()
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-kelola-akun`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${sesi.session.access_token}`,
-    },
-    body: JSON.stringify({ action: 'reset_password', pengguna_id, password_baru }),
+  const { data, error } = await supabase.functions.invoke('admin-kelola-akun', {
+    body: { action: 'reset_password', pengguna_id, password_baru },
   })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Gagal reset kata sandi.')
-  return json
+  if (error) throw new Error(await pesanErrorFungsi(error, 'Gagal reset kata sandi.'))
+  return data
 }

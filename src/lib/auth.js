@@ -48,15 +48,30 @@ export async function adaAdmin() {
 // sintesis, dan langsung kena "email rate limit exceeded" di layanan email
 // bawaan Supabase yang sangat dibatasi. admin.createUser() di server tidak
 // pernah mengirim email sama sekali.
+//
+// Dipanggil lewat supabase.functions.invoke(), bukan fetch() manual --
+// invoke() otomatis menyertakan header apikey/Authorization yang sah (anon
+// key, karena memang belum ada sesi login). Tanpa ini, permintaan ditolak
+// duluan oleh pemeriksaan "Verify JWT" bawaan Supabase sebelum kode Edge
+// Function-nya sempat jalan sama sekali.
 export async function daftarAdminPertama({ nama, nrp, pangkat, gelar, password }) {
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-kelola-akun`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'bootstrap', nama, nrp, pangkat, gelar, password }),
+  const { error } = await supabase.functions.invoke('admin-kelola-akun', {
+    body: { action: 'bootstrap', nama, nrp, pangkat, gelar, password },
   })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Gagal mendaftarkan Administrator.')
+  if (error) throw new Error(await pesanErrorFungsi(error))
   await masuk(nrp, password)
+}
+
+// FunctionsHttpError dari supabase-js tidak otomatis membawa body JSON
+// respons kita ({error: "..."}) di properti error.message -- badan aslinya
+// ada di error.context (Response mentah), jadi harus dibaca manual.
+export async function pesanErrorFungsi(error, fallback = 'Terjadi kesalahan.') {
+  try {
+    const body = await error.context.json()
+    return body?.error || error.message || fallback
+  } catch {
+    return error.message || fallback
+  }
 }
 
 export async function ambilProfilSaya(authUserId) {
