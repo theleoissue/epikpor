@@ -24,19 +24,40 @@ export function bulanJakarta(iso) {
   return Number(bagian) - 1
 }
 
-// Konversi ke/dari <input type="datetime-local"> memakai jam perangkat apa
-// adanya (bukan dipaksa Asia/Jakarta) — konsisten dengan cara stempel waktu
-// direkam pertama kali di Kejadian.jsx (new Date().toISOString() dari jam
-// perangkat), yang dalam praktiknya sudah WIB karena dipakai di lapangan.
-export function keInputDatetimeLocal(iso) {
+// Stempel waktu disunting lewat DUA kolom terpisah (<input type="date"> dan
+// <input type="time">), bukan satu <input type="datetime-local">. Alasannya:
+// datetime-local punya lebar minimum yang cukup besar, dan di tata letak tiga
+// kolom yang sempit bagian jamnya terpotong sehingga hanya tanggal yang bisa
+// diisi. Dua kolom terpisah juga lebih enak disentuh di layar HP.
+//
+// Memakai jam perangkat apa adanya (bukan dipaksa Asia/Jakarta) — konsisten
+// dengan cara stempel direkam pertama kali di Kejadian.jsx
+// (new Date().toISOString() dari jam perangkat), yang dalam praktiknya sudah
+// WIB karena dipakai di lapangan.
+const pad2 = (n) => String(n).padStart(2, '0')
+
+export function keInputTanggal(iso) {
   if (!iso) return ''
   const d = new Date(iso)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
-export function dariInputDatetimeLocal(v) {
-  return v ? new Date(v).toISOString() : null
+export function keInputJam(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+// Salah satu kolom boleh kosong saat pengguna baru mengisi separuh: tanggal
+// kosong dianggap hari ini, jam kosong dianggap 00:00. Kalau KEDUANYA kosong,
+// stempelnya memang dihapus (null).
+export function gabungTanggalJam(tanggal, jam) {
+  if (!tanggal && !jam) return null
+  const hariIni = new Date()
+  const t = tanggal || `${hariIni.getFullYear()}-${pad2(hariIni.getMonth() + 1)}-${pad2(hariIni.getDate())}`
+  const j = jam || '00:00'
+  const hasil = new Date(`${t}T${j}`)
+  return isNaN(hasil.getTime()) ? null : hasil.toISOString()
 }
 
 export function fmtRupiah(n) {

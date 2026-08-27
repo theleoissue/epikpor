@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth'
 import { useToast } from '../components/Toast'
 import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
-import { fmtTime, fmtDate, fmtRupiah, keInputDatetimeLocal, dariInputDatetimeLocal } from '../lib/format'
+import { fmtTime, fmtDate, fmtRupiah, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
 import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan } from '../lib/laporanKegiatanApi'
 import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, ambilLogKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
@@ -33,7 +33,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const [editMode, setEditMode] = useState(false)
   const [editLokasi, setEditLokasi] = useState('')
   const [editKeterangan, setEditKeterangan] = useState('')
-  const [editW, setEditW] = useState({ waktu_diterima: '', waktu_penanganan: '', waktu_selesai: '' })
+  const [editW, setEditW] = useState({})
   const [catatanKecuali, setCatatanKecuali] = useState('')
 
   async function muat() {
@@ -88,11 +88,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   function mulaiEdit() {
     setEditLokasi(data.lokasi || '')
     setEditKeterangan(data.keterangan || '')
-    setEditW({
-      waktu_diterima: keInputDatetimeLocal(data.waktu_diterima),
-      waktu_penanganan: keInputDatetimeLocal(data.waktu_penanganan),
-      waktu_selesai: keInputDatetimeLocal(data.waktu_selesai),
-    })
+    setEditW(Object.fromEntries(STEMPEL.map(([k]) => [k, {
+      tanggal: keInputTanggal(data[k]), jam: keInputJam(data[k]),
+    }])))
     setEditMode(true)
   }
 
@@ -104,9 +102,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       } else if (tipe === 'kejadian') {
         await perbaruiLaporanKejadian(id, {
           lokasi: editLokasi.trim(),
-          waktu_diterima: dariInputDatetimeLocal(editW.waktu_diterima),
-          waktu_penanganan: dariInputDatetimeLocal(editW.waktu_penanganan),
-          waktu_selesai: dariInputDatetimeLocal(editW.waktu_selesai),
+          ...Object.fromEntries(STEMPEL.map(([k]) => [
+            k, gabungTanggalJam(editW[k]?.tanggal, editW[k]?.jam),
+          ])),
         })
       }
       toast('Perubahan tersimpan')
@@ -244,15 +242,25 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
                   <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Stempel waktu</div>
                   <div className="grid gap-2 sm:grid-cols-3">
                     {STEMPEL.map(([kunci, judul]) => (
-                      <label key={kunci} className="text-[11px] text-ink-soft">
+                      <div key={kunci} className="text-[11px] text-ink-soft">
                         {judul}
-                        <input
-                          type="datetime-local"
-                          value={editW[kunci]}
-                          onChange={(e) => setEditW((prev) => ({ ...prev, [kunci]: e.target.value }))}
-                          className="mt-0.5 w-full rounded-lg border border-line px-2 py-1.5 text-[12px]"
-                        />
-                      </label>
+                        <div className="mt-0.5 flex gap-1">
+                          <input
+                            type="date"
+                            aria-label={`Tanggal ${judul}`}
+                            value={editW[kunci]?.tanggal || ''}
+                            onChange={(e) => setEditW((prev) => ({ ...prev, [kunci]: { ...prev[kunci], tanggal: e.target.value } }))}
+                            className="min-w-0 flex-1 rounded-lg border border-line px-1.5 py-1.5 text-[11.5px]"
+                          />
+                          <input
+                            type="time"
+                            aria-label={`Jam ${judul}`}
+                            value={editW[kunci]?.jam || ''}
+                            onChange={(e) => setEditW((prev) => ({ ...prev, [kunci]: { ...prev[kunci], jam: e.target.value } }))}
+                            className="w-[76px] flex-shrink-0 rounded-lg border border-line px-1.5 py-1.5 text-[11.5px]"
+                          />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>

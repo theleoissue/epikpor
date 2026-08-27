@@ -7,7 +7,7 @@ import { ambilSesiAktifSaya } from '../lib/sesiPiketApi'
 import { kirimLaporanKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
 import { unggahFoto, getGeoPosition } from '../lib/storage'
 import { tambahAntrean } from '../lib/offlineQueue'
-import { SASARAN_WAKTU_TANGGAP, keInputDatetimeLocal, dariInputDatetimeLocal } from '../lib/format'
+import { SASARAN_WAKTU_TANGGAP, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
 
 const STAMP_DEFS = [
   ['waktu_diterima', 'Laporan Diterima', 'Panggilan / laporan masuk'],
@@ -89,10 +89,13 @@ export default function Kejadian() {
   // Jam kejadian sering baru diisi beberapa waktu setelah peristiwanya —
   // mengetuk saat itu juga akan mencatat jam pengisian, bukan jam kejadian.
   // Karena itu tiap stempel tetap bisa disetel manual.
-  function setStempelManual(key, nilai) {
+  function setStempelManual(key, { tanggal, jam }) {
     setW((prev) => {
-      if (!nilai) { const { [key]: _hapus, ...rest } = prev; return rest }
-      return { ...prev, [key]: dariInputDatetimeLocal(nilai) }
+      const t = tanggal !== undefined ? tanggal : keInputTanggal(prev[key])
+      const j = jam !== undefined ? jam : keInputJam(prev[key])
+      const iso = gabungTanggalJam(t, j)
+      if (!iso) { const { [key]: _hapus, ...rest } = prev; return rest }
+      return { ...prev, [key]: iso }
     })
   }
 
@@ -202,15 +205,25 @@ export default function Kejadian() {
             >
               {w[key] ? new Date(w[key]).toTimeString().slice(0, 8) : 'Ketuk saat terjadi'}
             </button>
-            <label className="mt-1.5 block text-[10px] text-ink-soft">
-              atau atur manual
-              <input
-                type="datetime-local"
-                value={keInputDatetimeLocal(w[key])}
-                onChange={(e) => setStempelManual(key, e.target.value)}
-                className="mt-0.5 w-full rounded-lg border border-line bg-white px-2 py-1 text-[11.5px]"
-              />
-            </label>
+            <div className="mt-1.5">
+              <div className="mb-0.5 text-[10px] text-ink-soft">atau atur manual</div>
+              <div className="flex gap-1">
+                <input
+                  type="date"
+                  aria-label={`Tanggal ${kode}`}
+                  value={keInputTanggal(w[key])}
+                  onChange={(e) => setStempelManual(key, { tanggal: e.target.value })}
+                  className="min-w-0 flex-1 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
+                />
+                <input
+                  type="time"
+                  aria-label={`Jam ${kode}`}
+                  value={keInputJam(w[key])}
+                  onChange={(e) => setStempelManual(key, { jam: e.target.value })}
+                  className="w-[72px] flex-shrink-0 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
+                />
+              </div>
+            </div>
           </div>
         ))}
       </div>
