@@ -49,11 +49,14 @@ Semua peran dari Bagian 4 (Kasat Lantas, Wakasat Lantas, Kanit Gakkum, Kaur Bin 
 
 Modul yang sebelumnya tidak ada di mockup dan sudah dibangun di sini: **Roster Piket** (`/roster`), **notifikasi otomatis** ke Kasubnit & Kanit saat kejadian dilaporkan (trigger database, bukan kode klien), **antrean luring** (`src/lib/offlineQueue.js`, IndexedDB), **rekap bulanan yang dihitung dari data asli** (Papan Pemantauan), **pencarian arsip 7 kriteria**, **PWA installable** (ikon sudah ada di `public/icons/`), dan **galeri foto + komentar** di halaman Verifikasi & Arsip lewat `DetailModal` (`src/components/DetailModal.jsx`) yang mengambil foto dari Storage lewat signed URL.
 
+### Menyimpang dari Dokumen Teknis (atas permintaan client)
+
+- **Stempel waktu kejadian: tiga tahap, bukan lima.** Bagian 7 menetapkan W1–W5. Atas permintaan client, ini diringkas jadi `waktu_diterima` ("Laporan Diterima"), `waktu_penanganan` ("Dalam Penanganan"), dan `waktu_selesai` ("Laporan Selesai") lewat migrasi `20260827000009`. W1→diterima, W3→penanganan, W5→selesai; W2 dan W4 dihapus dan datanya tidak dipertahankan. Sasaran waktu tanggap ikut menyesuaikan: ambang "menerima laporan" (10 menit) dan "tiba di TKP" (35 menit) dilebur jadi satu ambang penanganan 45 menit, karena batas antara keduanya sudah tidak direkam. **Dokumen Teknis Bagian 7 perlu diperbarui** agar tidak berbeda dengan aplikasi.
+
 ### Belum diporting / belum ada mekanismenya (sengaja ditunda)
 
 - **Kolase foto TKP** (gambar gabungan 4 foto ala mockup, murni dekoratif) — belum ada.
-- **Edit lengkap Kejadian Kecelakaan** (ubah kembali orang/kendaraan/faktor penyebab setelah terkirim) — `DetailModal` cuma bisa mengedit lokasi & keterangan Laporan Kegiatan; API `gantiOrangDanKendaraan` sudah ada di `laporanKejadianApi.js` tapi belum ada form yang memakainya.
-- **Penyuntingan manual satu stempel waktu** (kalau telat mengetuk) — cuma bisa ketuk-batal-ketuk ulang, belum ada input jam manual.
+- **Edit lengkap Kejadian Kecelakaan** (ubah kembali orang/kendaraan/faktor penyebab setelah terkirim) — `DetailModal` baru bisa mengedit lokasi & stempel waktu; API `gantiOrangDanKendaraan` sudah ada di `laporanKejadianApi.js` tapi belum ada form yang memakainya.
 - **Deteksi "dijadwalkan tapi tidak buka sesi"** (status `PELANGGARAN_TIDAK_BUKA`) — belum ada mekanismenya sama sekali, beda dengan auto-tutup 18 jam yang fungsinya sudah ada (lihat langkah 1.6).
 - **Notifikasi pra-piket** ("personel menerima pemberitahuan sebelum jam piket dimulai", Bagian 5.8) — perlu scheduled job yang membandingkan roster dengan jam sekarang, belum dibangun.
 

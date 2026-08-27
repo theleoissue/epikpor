@@ -187,7 +187,7 @@ export default function Kejadian() {
       <div>
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Formulir · Waktu Tanggap</div>
         <h1 className="mt-1 font-display text-[22px] font-semibold">Kejadian Kecelakaan</h1>
-        <p className="mt-1 text-[13.5px] text-ink-soft">Ketuk tiap stempel waktu tepat saat peristiwanya terjadi. Sistem menghitung sendiri keempat rentang waktu.</p>
+        <p className="mt-1 text-[13.5px] text-ink-soft">Ketuk tiap stempel tepat saat peristiwanya terjadi, atau atur jamnya manual bila laporan diisi belakangan. Sistem menghitung sendiri rentang waktunya.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
