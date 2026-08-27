@@ -12,6 +12,33 @@ import ImporPersonelMassal from '../components/ImporPersonelMassal'
 const TABS = [['personel', 'Personel'], ['kegiatan', 'Jenis Kegiatan'], ['kecelakaan', 'Jenis & Tipe Kecelakaan']]
 const PERAN_OPT = Object.entries(LABEL_PERAN)
 
+// Dikelompokkan per zona (bukan satu tabel alfabetis campur) supaya susunannya
+// kebaca sama seperti bagan struktur organisasi: pimpinan tanpa zona dulu,
+// lalu tiap zona dengan Kasubnit di atas dan Banit terurut per regu.
+const URUTAN_ZONA = ['Tanpa Zona', 'Timur', 'Tengah', 'Barat']
+const URUTAN_PERAN = { KASAT_LANTAS: 0, WAKASAT_LANTAS: 1, KANIT_GAKKUM: 2, KAUR_BIN_OPS: 3, ADMIN: 4, KASUBNIT: 5, BANIT: 6 }
+
+function kelompokkanPersonel(daftar) {
+  const kelompok = {}
+  for (const p of daftar) {
+    const key = p.zona?.nama || 'Tanpa Zona'
+    ;(kelompok[key] ??= []).push(p)
+  }
+  for (const key in kelompok) {
+    kelompok[key].sort((a, b) => {
+      const pa = URUTAN_PERAN[a.peran_sistem] ?? 9
+      const pb = URUTAN_PERAN[b.peran_sistem] ?? 9
+      if (pa !== pb) return pa - pb
+      const ra = a.regu?.nomor || ''
+      const rb = b.regu?.nomor || ''
+      if (ra !== rb) return ra.localeCompare(rb)
+      return a.nama.localeCompare(b.nama)
+    })
+  }
+  const kunciTerurut = [...URUTAN_ZONA.filter((k) => kelompok[k]), ...Object.keys(kelompok).filter((k) => !URUTAN_ZONA.includes(k)).sort()]
+  return kunciTerurut.map((zona) => ({ zona, personel: kelompok[zona] }))
+}
+
 export default function Kelola() {
   const [tab, setTab] = useState('personel')
   return (
@@ -98,8 +125,40 @@ function TabPersonel() {
     }
   }
 
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState(null)
+  const [memprosesEdit, setMemprosesEdit] = useState(false)
+
+  function mulaiEdit(p) {
+    setEditTarget(p)
+    setEditForm({ nama: p.nama, pangkat: p.pangkat || '', gelar: p.gelar || '', peran_sistem: p.peran_sistem, zona_id: p.zona_id || '', regu_id: p.regu_id || '' })
+  }
+
+  async function simpanEdit() {
+    const perluZonaEdit = editForm.peran_sistem === 'BANIT' || editForm.peran_sistem === 'KASUBNIT'
+    const perluReguEdit = editForm.peran_sistem === 'BANIT'
+    if (perluZonaEdit && !editForm.zona_id) return toast('Personel dengan peran Banit atau Kasubnit wajib diberi zona', true)
+    if (perluReguEdit && !editForm.regu_id) return toast('Personel dengan peran Banit wajib diberi regu', true)
+    setMemprosesEdit(true)
+    try {
+      await perbaruiPengguna(editTarget.id, {
+        nama: editForm.nama, pangkat: editForm.pangkat, gelar: editForm.gelar, peran_sistem: editForm.peran_sistem,
+        zona_id: perluZonaEdit ? editForm.zona_id : null,
+        regu_id: perluReguEdit ? editForm.regu_id : null,
+      })
+      toast(`Data ${editForm.nama} diperbarui`)
+      setEditTarget(null)
+      muat()
+    } catch (e) {
+      toast(e.message || 'Gagal menyimpan perubahan', true)
+    } finally {
+      setMemprosesEdit(false)
+    }
+  }
+
   const perluZona = form.peran_sistem === 'BANIT' || form.peran_sistem === 'KASUBNIT'
   const perluRegu = form.peran_sistem === 'BANIT'
+  const kelompokPersonel = kelompokkanPersonel(daftar)
 
   return (
     <div>
@@ -131,26 +190,65 @@ function TabPersonel() {
         <button onClick={tambahAkun} disabled={memproses} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white disabled:opacity-50">+ Tambah Personel</button>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[640px] text-[12.5px]">
-          <thead><tr className="bg-paper-dim text-left text-[11px] uppercase text-ink-soft"><th className="px-3.5 py-2.5">Nama</th><th className="px-3.5 py-2.5">NRP</th><th className="px-3.5 py-2.5">Peran</th><th className="px-3.5 py-2.5">Zona/Regu</th><th className="px-3.5 py-2.5">Status</th><th className="px-3.5 py-2.5"></th></tr></thead>
-          <tbody>
-            {daftar.map((p) => (
-              <tr key={p.id} className={`border-t border-paper-dim ${!p.status_aktif ? 'opacity-50' : ''}`}>
-                <td className="px-3.5 py-2.5">{p.nama}</td>
-                <td className="px-3.5 py-2.5 font-mono">{p.nrp}</td>
-                <td className="px-3.5 py-2.5">{LABEL_PERAN[p.peran_sistem]}</td>
-                <td className="px-3.5 py-2.5">{p.zona ? `Zona ${p.zona.nama}` : '-'}{p.regu ? ` · Regu ${p.regu.nomor}` : ''}</td>
-                <td className="px-3.5 py-2.5"><span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${p.status_aktif ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>{p.status_aktif ? 'Aktif' : 'Nonaktif'}</span></td>
-                <td className="whitespace-nowrap px-3.5 py-2.5">
-                  <button onClick={() => toggleAktif(p)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">{p.status_aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                  <button onClick={() => { setResetTarget(p); setSandiBaru('') }} className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Reset Sandi</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-4">
+        {kelompokPersonel.map(({ zona: namaZona, personel }) => (
+          <div key={namaZona} className="overflow-x-auto rounded-2xl border border-line bg-white">
+            <div className="border-b border-line bg-paper-dim px-3.5 py-2 font-display text-[12.5px] font-bold text-navy-900">
+              {namaZona === 'Tanpa Zona' ? 'Pimpinan / Tanpa Zona' : `Zona ${namaZona}`}
+            </div>
+            <table className="w-full min-w-[640px] text-[12.5px]">
+              <thead><tr className="bg-paper-dim text-left text-[11px] uppercase text-ink-soft"><th className="px-3.5 py-2.5">Nama</th><th className="px-3.5 py-2.5">NRP</th><th className="px-3.5 py-2.5">Peran</th><th className="px-3.5 py-2.5">Regu</th><th className="px-3.5 py-2.5">Status</th><th className="px-3.5 py-2.5"></th></tr></thead>
+              <tbody>
+                {personel.map((p) => (
+                  <tr key={p.id} className={`border-t border-paper-dim ${!p.status_aktif ? 'opacity-50' : ''}`}>
+                    <td className="px-3.5 py-2.5">{p.pangkat} {p.nama}</td>
+                    <td className="px-3.5 py-2.5 font-mono">{p.nrp}</td>
+                    <td className="px-3.5 py-2.5">{LABEL_PERAN[p.peran_sistem]}</td>
+                    <td className="px-3.5 py-2.5">{p.regu ? `Regu ${p.regu.nomor}` : '-'}</td>
+                    <td className="px-3.5 py-2.5"><span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${p.status_aktif ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>{p.status_aktif ? 'Aktif' : 'Nonaktif'}</span></td>
+                    <td className="whitespace-nowrap px-3.5 py-2.5">
+                      <button onClick={() => mulaiEdit(p)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Edit</button>
+                      <button onClick={() => toggleAktif(p)} className="mr-1.5 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">{p.status_aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                      <button onClick={() => { setResetTarget(p); setSandiBaru('') }} className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold">Reset Sandi</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setEditTarget(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-paper p-5 shadow-2xl">
+            <h3 className="mb-1 font-display text-[15px] font-semibold">Edit Personel</h3>
+            <p className="mb-3.5 text-[12.5px] text-ink-soft">NRP {editTarget.nrp} (NRP tidak bisa diubah di sini)</p>
+            <div className="mb-3.5 grid gap-3 sm:grid-cols-2">
+              <input value={editForm.nama} onChange={(e) => setEditForm((f) => ({ ...f, nama: e.target.value }))} placeholder="Nama lengkap" className="col-span-2 rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              <input value={editForm.pangkat} onChange={(e) => setEditForm((f) => ({ ...f, pangkat: e.target.value }))} placeholder="Pangkat" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              <input value={editForm.gelar} onChange={(e) => setEditForm((f) => ({ ...f, gelar: e.target.value }))} placeholder="Gelar (opsional)" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />
+              <select value={editForm.peran_sistem} onChange={(e) => setEditForm((f) => ({ ...f, peran_sistem: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
+                {PERAN_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              {(editForm.peran_sistem === 'BANIT' || editForm.peran_sistem === 'KASUBNIT') && (
+                <select value={editForm.zona_id} onChange={(e) => setEditForm((f) => ({ ...f, zona_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
+                  <option value="">Zona (wajib) —</option>{zona.map((z) => <option key={z.id} value={z.id}>{z.nama}</option>)}
+                </select>
+              )}
+              {editForm.peran_sistem === 'BANIT' && (
+                <select value={editForm.regu_id} onChange={(e) => setEditForm((f) => ({ ...f, regu_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
+                  <option value="">Regu (wajib) —</option>{regu.map((r) => <option key={r.id} value={r.id}>Regu {r.nomor}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setEditTarget(null)} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Batal</button>
+              <button onClick={simpanEdit} disabled={memprosesEdit} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white disabled:opacity-50">Simpan</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setResetTarget(null)}>
