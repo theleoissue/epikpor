@@ -83,21 +83,9 @@ export default function Kejadian() {
     ambilSesiAktifSaya(profil.id).then(setSesi)
   }, [profil.id])
 
-  function judulStempel(key) {
-    return STAMP_DEFS.find(([k]) => k === key)?.[1] || key
-  }
-
-  function tapStamp(key) {
-    setW((prev) => {
-      if (prev[key]) { const { [key]: _hapus, ...rest } = prev; toast(`${judulStempel(key)} dibatalkan`); return rest }
-      toast(`${judulStempel(key)} tercatat`)
-      return { ...prev, [key]: new Date().toISOString() }
-    })
-  }
-
-  // Jam kejadian sering baru diisi beberapa waktu setelah peristiwanya —
-  // mengetuk saat itu juga akan mencatat jam pengisian, bukan jam kejadian.
-  // Karena itu tiap stempel tetap bisa disetel manual.
+  // Satu-satunya jalur pengisian stempel. Tanggal dan jam dipegang terpisah di
+  // antarmuka lalu digabung jadi satu waktu, sehingga salah satunya boleh
+  // diisi lebih dulu tanpa membuat stempelnya hilang.
   function setStempelManual(key, { tanggal, jam }) {
     setW((prev) => {
       const t = tanggal !== undefined ? tanggal : keInputTanggal(prev[key])
@@ -223,7 +211,7 @@ export default function Kejadian() {
       <div>
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Formulir · Waktu Tanggap</div>
         <h1 className="mt-1 font-display text-[22px] font-semibold">Kejadian Kecelakaan</h1>
-        <p className="mt-1 text-[13.5px] text-ink-soft">Ketuk tiap stempel tepat saat peristiwanya terjadi, atau atur jamnya manual bila laporan diisi belakangan. Sistem menghitung sendiri rentang waktunya.</p>
+        <p className="mt-1 text-[13.5px] text-ink-soft">Isi tanggal dan jam tiap tahap sesuai waktu peristiwanya — bukan waktu formulir ini diisi. Tombol <b>Sekarang</b> tersedia bila tahapnya memang baru saja terjadi. Sistem menghitung sendiri rentang waktunya.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
@@ -243,60 +231,58 @@ export default function Kejadian() {
               </div>
               <div className="mb-2 min-h-[28px] text-[10.5px] leading-tight text-ink-soft">{label}</div>
 
-              {terisi ? (
-                <div className="mb-1.5 text-center">
-                  <div className="font-mono text-[19px] font-bold leading-none text-ok">{keInputJam(w[key])}</div>
-                  <div className="mt-0.5 text-[10px] text-ink-soft">{keInputTanggal(w[key]).split('-').reverse().join('/')}</div>
-                </div>
-              ) : (
+              {/* Kolom tanggal & jam adalah SATU-SATUNYA cara mengisi stempel.
+                  Dulu ada dua jalur bersaing — tombol "Ketuk saat terjadi" dan
+                  isian manual — padahal formulir ini pada praktiknya diisi di
+                  pos setelah penanganan selesai, bukan saat peristiwanya
+                  berlangsung. Tombol ketuk jadi menjebak: yang terekam jam
+                  pengisian, bukan jam kejadian. "Sekarang" di bawah hanyalah
+                  pintasan yang mengisikan jam saat ini ke kolom yang sama. */}
+              <div className="flex gap-1">
+                <input
+                  type="date"
+                  aria-label={`Tanggal ${kode}`}
+                  max={keInputTanggal(new Date().toISOString())}
+                  value={keInputTanggal(w[key])}
+                  onChange={(e) => setStempelManual(key, { tanggal: e.target.value })}
+                  className={`min-w-0 flex-1 rounded-lg border bg-white px-2 py-1.5 text-[11.5px] ${terisi ? 'border-[#BFE0CD]' : 'border-line'}`}
+                />
+                <input
+                  type="time"
+                  aria-label={`Jam ${kode}`}
+                  value={keInputJam(w[key])}
+                  onChange={(e) => setStempelManual(key, { jam: e.target.value })}
+                  className={`w-[92px] flex-shrink-0 rounded-lg border bg-white px-1.5 py-1.5 font-mono text-[12px] font-semibold ${terisi ? 'border-[#BFE0CD] text-ok' : 'border-line'}`}
+                />
+              </div>
+
+              <div className="mt-1 flex gap-1">
                 <button
                   type="button"
-                  onClick={() => tapStamp(key)}
-                  className="mb-1.5 w-full rounded-lg border border-line py-2 text-[12px] font-semibold text-ink-soft hover:border-brass hover:text-navy-900"
+                  onClick={() => setStempelManual(key, { tanggal: keInputTanggal(new Date().toISOString()), jam: keInputJam(new Date().toISOString()) })}
+                  className="flex-1 rounded-lg border border-line py-1 text-[10.5px] font-semibold text-ink-soft hover:border-brass hover:text-navy-900"
                 >
-                  Ketuk saat terjadi
+                  Sekarang
                 </button>
-              )}
+                {terisi && (
+                  <button
+                    type="button"
+                    onClick={() => setStempelManual(key, { tanggal: '', jam: '' })}
+                    className="flex-1 rounded-lg py-1 text-[10.5px] font-semibold text-bad hover:bg-bad-bg"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
 
               {beda && (
-                <div className={`mb-1.5 rounded-md px-2 py-1 text-[10.5px] ${beda.mundur ? 'bg-bad text-white' : 'bg-white/70 text-ink-soft'}`}>
+                <div className={`mt-1.5 rounded-md px-2 py-1 text-[10.5px] ${beda.mundur ? 'bg-bad text-white' : 'bg-white/70 text-ink-soft'}`}>
                   {beda.mundur
                     ? `⚠ Mendahului "${beda.judulSebelum}" sejauh ${beda.teks}`
                     : `+${beda.teks} dari "${beda.judulSebelum}"`}
                 </div>
               )}
-
-              <div className="mt-auto">
-                <div className="mb-0.5 text-[10px] text-ink-soft">{terisi ? 'Ubah manual' : 'atau atur manual'}</div>
-                <div className="flex gap-1">
-                  <input
-                    type="date"
-                    aria-label={`Tanggal ${kode}`}
-                    max={keInputTanggal(new Date().toISOString())}
-                    value={keInputTanggal(w[key])}
-                    onChange={(e) => setStempelManual(key, { tanggal: e.target.value })}
-                    className="min-w-0 flex-1 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
-                  />
-                  <input
-                    type="time"
-                    aria-label={`Jam ${kode}`}
-                    value={keInputJam(w[key])}
-                    onChange={(e) => setStempelManual(key, { jam: e.target.value })}
-                    className="w-[72px] flex-shrink-0 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
-                  />
-                </div>
-                {/* Dulu membatalkan stempel hanya bisa dengan mengetuk ulang
-                    tombolnya — tidak ada petunjuk apa pun bahwa itu caranya. */}
-                {terisi && (
-                  <button
-                    type="button"
-                    onClick={() => tapStamp(key)}
-                    className="mt-1 w-full rounded-lg py-1 text-[10.5px] font-semibold text-bad hover:bg-bad-bg"
-                  >
-                    Hapus stempel
-                  </button>
-                )}
-              </div>
+              <div className="mt-auto" />
             </div>
           )
         })}
