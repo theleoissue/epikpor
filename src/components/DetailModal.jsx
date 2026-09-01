@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { useToast } from '../components/Toast'
 import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
 import { fmtTime, fmtDate, fmtRupiah, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
 import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan } from '../lib/laporanKegiatanApi'
-import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, ambilLogKejadian } from '../lib/laporanKejadianApi'
+import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, ambilLogKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
 import { buildLaporanKejadianWA } from '../lib/waReport'
+import { buatKolaseTkp, unduhBlob } from '../lib/kolase'
 
 const PERAN_VERIFIKATOR = ['KASUBNIT', 'KANIT_GAKKUM']
 
@@ -34,6 +35,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const [editLokasi, setEditLokasi] = useState('')
   const [editKeterangan, setEditKeterangan] = useState('')
   const [editW, setEditW] = useState({})
+  const [editOrang, setEditOrang] = useState([])
+  const [editKendaraan, setEditKendaraan] = useState([])
+  const idBaruRef = useRef(1)
   const [catatanKecuali, setCatatanKecuali] = useState('')
 
   async function muat() {
@@ -91,6 +95,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
     setEditW(Object.fromEntries(STEMPEL.map(([k]) => [k, {
       tanggal: keInputTanggal(data[k]), jam: keInputJam(data[k]),
     }])))
+    if (tipe === 'kejadian') {
+      const bentuk = keBentukFormulir(data)
+      setEditKendaraan(bentuk.kendaraan)
+      setEditOrang(bentuk.orang)
+    }
     setEditMode(true)
   }
 
@@ -106,6 +115,10 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
             k, gabungTanggalJam(editW[k]?.tanggal, editW[k]?.jam),
           ])),
         })
+        // Baris anak diganti setelah induknya berhasil diperbarui — kalau
+        // perbaruiLaporanKejadian menolak (mis. sudah diverifikasi), data
+        // orang/kendaraan lama tetap utuh dan tidak terlanjur terhapus.
+        await gantiOrangDanKendaraan(id, { orang: editOrang, kendaraan: editKendaraan })
       }
       toast('Perubahan tersimpan')
       setEditMode(false)
@@ -159,6 +172,27 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   function salinWA() {
     navigator.clipboard.writeText(buildLaporanKejadianWA(data))
     toast('Teks laporan WhatsApp disalin')
+  }
+
+  async function unduhKolase() {
+    setMemproses(true)
+    try {
+      const blob = await buatKolaseTkp(fotoUrls, {
+        lokasi: data.lokasi,
+        jenis: data.jenis_kecelakaan?.nama,
+        waktu: data.waktu_diterima || data.created_at,
+        zona: data.zona?.nama,
+        regu: data.regu?.nomor,
+        pelapor: `${data.pelapor_pangkat || ''} ${data.pelapor_nama || ''}`.trim(),
+      })
+      const tanggal = new Date(data.waktu_diterima || data.created_at).toISOString().slice(0, 10)
+      unduhBlob(blob, `Kolase-TKP-${tanggal}-${(data.lokasi || 'kejadian').replace(/[^\w]+/g, '-').slice(0, 40)}.jpg`)
+      toast('Kolase foto TKP diunduh')
+    } catch (e) {
+      toast(e.message || 'Gagal menyusun kolase', true)
+    } finally {
+      setMemproses(false)
+    }
   }
 
   if (!data) return null
@@ -260,6 +294,15 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
                   </div>
                 </div>
               )}
+
+              {tipe === 'kejadian' && (
+                <EditorKendaraanOrang
+                  kendaraan={editKendaraan} setKendaraan={setEditKendaraan}
+                  orang={editOrang} setOrang={setEditOrang}
+                  idBaru={() => `baru-${idBaruRef.current++}`}
+                />
+              )}
+
               <div className="flex gap-2">
                 <button onClick={simpanEdit} disabled={memproses} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white disabled:opacity-50">Simpan</button>
                 <button onClick={() => setEditMode(false)} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Batal</button>
@@ -365,6 +408,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
                 </a>
               )}
               {tipe === 'kejadian' && <button onClick={salinWA} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">💬 Laporan WA</button>}
+              {tipe === 'kejadian' && fotoUrls.length > 0 && (
+                <button onClick={unduhKolase} disabled={memproses} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold disabled:opacity-50">🖼️ Kolase TKP</button>
+              )}
               {bisaEdit && !editMode && data.status === 'MENUNGGU_VERIFIKASI' && <button onClick={mulaiEdit} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">✎ Edit</button>}
               {bisaKecualikan && <button onClick={kecualikan} disabled={memproses} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Simpan &amp; Kecualikan</button>}
               {(bisaVerifikasi || bisaVerifikasiSesi) && (
@@ -385,9 +431,145 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
 // surat, dan identitas lengkap — artinya laporan disahkan tanpa pernah
 // benar-benar terbaca.
 const LABEL_KELENGKAPAN = [['stnk', 'STNK'], ['sim', 'SIM'], ['ktp', 'KTP'], ['helm_sabuk', 'Helm/Sabuk']]
+const KONDISI_OPT = [['SELAMAT', 'Selamat'], ['LUKA_RINGAN', 'Luka Ringan'], ['LUKA_BERAT', 'Luka Berat'], ['MENINGGAL_DUNIA', 'Meninggal Dunia'], ['DALAM_PERAWATAN', 'Dalam Perawatan']]
+const KATEGORI_KENDARAAN = ['Sepeda Motor', 'Mobil Penumpang', 'Mobil Barang / Truk', 'Bus', 'Angkutan Umum', 'Sepeda / Tidak Bermotor', 'Lainnya']
+
+// Baris dari database memakai snake_case dan id asli; gantiOrangDanKendaraan()
+// mengharapkan bentuk formulir (camelCase + idSementara untuk menautkan orang
+// ke kendaraannya). Id asli dipakai ulang sebagai idSementara — nilainya cuma
+// kunci sementara untuk penautan, jadi aman.
+function keBentukFormulir(data) {
+  return {
+    kendaraan: (data.kendaraan || []).map((k) => ({
+      idSementara: k.id, kategori: k.kategori || KATEGORI_KENDARAAN[0], merk: k.merk || '', nopol: k.nopol || '',
+    })),
+    orang: (data.orang || []).map((o) => ({
+      idSementara: o.id, nama: o.nama || '', jenisKelamin: o.jenis_kelamin || 'L', pekerjaan: o.pekerjaan || '',
+      tempatLahir: o.tempat_lahir || '', tanggalLahir: o.tanggal_lahir || '', alamat: o.alamat || '',
+      peran: o.peran || '', kendaraanIdSementara: o.kendaraan_id || '', kondisi: o.kondisi || 'SELAMAT',
+      rsRujukan: o.rs_rujukan || '',
+      kelengkapan: o.kelengkapan || { stnk: false, sim: false, sim_jenis: '', ktp: false, helm_sabuk: false },
+    })),
+  }
+}
 
 function rapi(v) {
   return typeof v === 'string' ? v.replaceAll('_', ' ') : v
+}
+
+function EditorKendaraanOrang({ kendaraan, setKendaraan, orang, setOrang, idBaru }) {
+  const ubahK = (id, tambalan) => setKendaraan((arr) => arr.map((x) => (x.idSementara === id ? { ...x, ...tambalan } : x)))
+  const ubahO = (id, tambalan) => setOrang((arr) => arr.map((x) => (x.idSementara === id ? { ...x, ...tambalan } : x)))
+  const kelas = 'w-full rounded-lg border border-line px-2 py-1.5 text-[12px]'
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Kendaraan terlibat</span>
+          <button
+            type="button"
+            onClick={() => setKendaraan((a) => [...a, { idSementara: idBaru(), kategori: KATEGORI_KENDARAAN[0], merk: '', nopol: '' }])}
+            className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold"
+          >+ Tambah</button>
+        </div>
+        {kendaraan.length === 0 && <div className="text-[12px] italic text-ink-soft">Belum ada kendaraan.</div>}
+        <div className="space-y-1.5">
+          {kendaraan.map((k) => (
+            <div key={k.idSementara} className="flex gap-1.5">
+              <select value={k.kategori} onChange={(e) => ubahK(k.idSementara, { kategori: e.target.value })} className={kelas}>
+                {KATEGORI_KENDARAAN.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <input value={k.merk} onChange={(e) => ubahK(k.idSementara, { merk: e.target.value })} placeholder="Merk / tipe" className={kelas} />
+              <input value={k.nopol} onChange={(e) => ubahK(k.idSementara, { nopol: e.target.value })} placeholder="Nopol" className={kelas} />
+              <button
+                type="button"
+                onClick={() => {
+                  setKendaraan((a) => a.filter((x) => x.idSementara !== k.idSementara))
+                  // Orang yang tertaut ke kendaraan ini ikut dilepas tautannya,
+                  // supaya tidak menunjuk kendaraan yang sudah tidak ada.
+                  setOrang((a) => a.map((o) => (o.kendaraanIdSementara === k.idSementara ? { ...o, kendaraanIdSementara: '' } : o)))
+                }}
+                className="flex-shrink-0 rounded-lg bg-bad-bg px-2 text-[12px] font-semibold text-bad"
+              >✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Orang terlibat</span>
+          <button
+            type="button"
+            onClick={() => setOrang((a) => [...a, {
+              idSementara: idBaru(), nama: '', jenisKelamin: 'L', pekerjaan: '', tempatLahir: '', tanggalLahir: '',
+              alamat: '', peran: '', kendaraanIdSementara: '', kondisi: 'SELAMAT', rsRujukan: '',
+              kelengkapan: { stnk: false, sim: false, sim_jenis: '', ktp: false, helm_sabuk: false },
+            }])}
+            className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold"
+          >+ Tambah</button>
+        </div>
+        {orang.length === 0 && <div className="text-[12px] italic text-ink-soft">Belum ada orang terlibat.</div>}
+        <div className="space-y-2">
+          {orang.map((o) => (
+            <div key={o.idSementara} className="rounded-lg border border-line p-2">
+              <div className="mb-1.5 flex gap-1.5">
+                <input value={o.nama} onChange={(e) => ubahO(o.idSementara, { nama: e.target.value })} placeholder="Nama lengkap" className={kelas} />
+                <button
+                  type="button"
+                  onClick={() => setOrang((a) => a.filter((x) => x.idSementara !== o.idSementara))}
+                  className="flex-shrink-0 rounded-lg bg-bad-bg px-2 text-[12px] font-semibold text-bad"
+                >✕</button>
+              </div>
+              <div className="mb-1.5 grid grid-cols-2 gap-1.5">
+                <select value={o.jenisKelamin} onChange={(e) => ubahO(o.idSementara, { jenisKelamin: e.target.value })} className={kelas}>
+                  <option value="L">Laki-laki</option><option value="P">Perempuan</option>
+                </select>
+                <select value={o.kondisi} onChange={(e) => ubahO(o.idSementara, { kondisi: e.target.value })} className={kelas}>
+                  {KONDISI_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                <input value={o.pekerjaan} onChange={(e) => ubahO(o.idSementara, { pekerjaan: e.target.value })} placeholder="Pekerjaan" className={kelas} />
+                <input value={o.peran} onChange={(e) => ubahO(o.idSementara, { peran: e.target.value })} placeholder="Peran (mis. Pengendara)" className={kelas} />
+                <input value={o.tempatLahir} onChange={(e) => ubahO(o.idSementara, { tempatLahir: e.target.value })} placeholder="Tempat lahir" className={kelas} />
+                <input type="date" aria-label="Tanggal lahir" value={o.tanggalLahir || ''} onChange={(e) => ubahO(o.idSementara, { tanggalLahir: e.target.value })} className={kelas} />
+              </div>
+              <input value={o.alamat} onChange={(e) => ubahO(o.idSementara, { alamat: e.target.value })} placeholder="Alamat" className={`${kelas} mb-1.5`} />
+              <div className="mb-1.5 grid grid-cols-2 gap-1.5">
+                <select value={o.kendaraanIdSementara} onChange={(e) => ubahO(o.idSementara, { kendaraanIdSementara: e.target.value })} className={kelas}>
+                  <option value="">Tanpa kendaraan</option>
+                  {kendaraan.map((k) => <option key={k.idSementara} value={k.idSementara}>{k.kategori} {k.merk} {k.nopol}</option>)}
+                </select>
+                {o.kondisi !== 'SELAMAT' && (
+                  <input value={o.rsRujukan} onChange={(e) => ubahO(o.idSementara, { rsRujukan: e.target.value })} placeholder="RS rujukan" className={kelas} />
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {LABEL_KELENGKAPAN.map(([kunci, label]) => (
+                  <label key={kunci} className="flex items-center gap-1 text-[11.5px]">
+                    <input
+                      type="checkbox"
+                      checked={!!o.kelengkapan?.[kunci]}
+                      onChange={(e) => ubahO(o.idSementara, { kelengkapan: { ...o.kelengkapan, [kunci]: e.target.checked } })}
+                    />
+                    {label}
+                  </label>
+                ))}
+                {o.kelengkapan?.sim && (
+                  <input
+                    value={o.kelengkapan.sim_jenis || ''}
+                    onChange={(e) => ubahO(o.idSementara, { kelengkapan: { ...o.kelengkapan, sim_jenis: e.target.value } })}
+                    placeholder="Jenis SIM"
+                    className="w-24 rounded-lg border border-line px-2 py-1 text-[11.5px]"
+                  />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function Bagian({ judul, children }) {
