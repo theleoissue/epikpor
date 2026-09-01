@@ -8,6 +8,7 @@ import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan }
 import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, ambilLogKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
+import { ambilKasatLantas } from '../lib/referensiApi'
 import { buildLaporanKejadianWA } from '../lib/waReport'
 import { buatKolaseTkp, unduhBlob } from '../lib/kolase'
 
@@ -169,9 +170,16 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
     }
   }
 
-  function salinWA() {
-    navigator.clipboard.writeText(buildLaporanKejadianWA(data))
-    toast('Teks laporan WhatsApp disalin')
+  async function salinWA() {
+    try {
+      // Nama pejabat penanda tangan diambil saat tombol ditekan, bukan
+      // disimpan di kode — lihat catatan di ambilKasatLantas().
+      const kasat = await ambilKasatLantas().catch(() => null)
+      await navigator.clipboard.writeText(buildLaporanKejadianWA(data, kasat))
+      toast(kasat ? 'Teks laporan WhatsApp disalin' : 'Tersalin, tapi belum ada akun Kasat Lantas untuk tanda tangan')
+    } catch {
+      toast('Gagal menyalin teks laporan', true)
+    }
   }
 
   async function unduhKolase() {

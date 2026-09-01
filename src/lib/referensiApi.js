@@ -140,6 +140,20 @@ export async function hapusTitikRawan(id) {
 // dari SEBELUM E-Pikpor berjalan, jadi disimpan terpisah dari rekap yang
 // dihitung Dashboard dari laporan_kejadian (yang cuma punya data sejak
 // aplikasi ini dipakai).
+// Pejabat penanda tangan laporan WhatsApp. Diambil dari data personel, bukan
+// ditulis mati di kode — supaya saat pejabatnya berganti cukup diperbarui
+// lewat Kelola Data tanpa mengubah dan men-deploy ulang aplikasi.
+export async function ambilKasatLantas() {
+  const { data, error } = await supabase
+    .from('pengguna')
+    .select('nama, pangkat, gelar')
+    .eq('peran_sistem', 'KASAT_LANTAS')
+    .eq('status_aktif', true)
+    .limit(1)
+  if (error) throw error
+  return data?.[0] || null
+}
+
 // Jejak "Admin X masuk sebagai Y" — ditulis admin-kelola-akun (aksi
 // 'impersonate') lewat service role. Nama target sudah ada di teks `aksi`
 // itu sendiri, jadi tidak perlu join tambahan ke pengguna.
