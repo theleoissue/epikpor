@@ -70,6 +70,19 @@ export function lamaPengisian(mulaiMs) {
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}d`
 }
 
+// Rentang bisa berjam-jam (mis. dari laporan diterima sampai selesai), jadi
+// tidak cukup ditulis dalam menit saja — "135m" jauh lebih sulit dicerna
+// daripada "2j 15m".
+export function lamaTerbaca(detik) {
+  const d = Math.max(0, Math.round(detik))
+  const j = Math.floor(d / 3600)
+  const m = Math.floor((d % 3600) / 60)
+  const s = d % 60
+  if (j > 0) return `${j}j ${m}m`
+  if (m > 0) return `${m}m ${s}d`
+  return `${s} detik`
+}
+
 export function rentangWaktu(dariIso, keIso) {
   if (!dariIso || !keIso) return null
   const diffSec = Math.round((new Date(keIso).getTime() - new Date(dariIso).getTime()) / 1000)

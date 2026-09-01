@@ -7,7 +7,7 @@ import { ambilSesiAktifSaya } from '../lib/sesiPiketApi'
 import { kirimLaporanKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
 import { unggahFoto, getGeoPosition } from '../lib/storage'
 import { tambahAntrean } from '../lib/offlineQueue'
-import { SASARAN_WAKTU_TANGGAP, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
+import { SASARAN_WAKTU_TANGGAP, keInputTanggal, keInputJam, gabungTanggalJam, lamaTerbaca } from '../lib/format'
 import {
   JENIS_KELAMIN_OPT, PERAN_ORANG_OPT, KONDISI_OPT, SIM_JENIS_OPT,
   KELENGKAPAN_DEF, STATUS_KELENGKAPAN_OPT, BELUM_DIPERIKSA, ADA,
@@ -131,7 +131,19 @@ export default function Kejadian() {
   function rentang(a, b, batasDetik) {
     if (!w[a] || !w[b]) return null
     const detik = Math.round((new Date(w[b]) - new Date(w[a])) / 1000)
-    return { mm: Math.floor(detik / 60), ss: detik % 60, lewat: detik > batasDetik }
+    return { detik, teks: lamaTerbaca(detik), lewat: detik > batasDetik }
+  }
+
+  // Selisih tiap tahap terhadap tahap sebelumnya, ditampilkan di kartunya
+  // sendiri supaya petugas langsung sadar kalau ada yang janggal — tidak perlu
+  // menunggu sampai menekan kirim.
+  function selisihTahapSebelumnya(i) {
+    if (i === 0) return null
+    const [kunci] = STAMP_DEFS[i]
+    const [kunciSebelum, judulSebelum] = STAMP_DEFS[i - 1]
+    if (!w[kunci] || !w[kunciSebelum]) return null
+    const detik = Math.round((new Date(w[kunci]) - new Date(w[kunciSebelum])) / 1000)
+    return { detik, teks: lamaTerbaca(Math.abs(detik)), mundur: detik < 0, judulSebelum }
   }
 
   function resetForm() {
@@ -215,51 +227,98 @@ export default function Kejadian() {
       </div>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-        {STAMP_DEFS.map(([key, kode, label]) => (
-          <div key={key} className={`rounded-xl border p-3 ${w[key] ? 'border-[#BFE0CD] bg-ok-bg' : 'border-line bg-white'}`}>
-            <div className="text-center font-display text-[13px] font-bold text-navy-900">{kode}</div>
-            <div className="my-1.5 min-h-[26px] text-center text-[10.5px] text-ink-soft">{label}</div>
-            <button
-              type="button"
-              onClick={() => tapStamp(key)}
-              className={`w-full rounded-lg border py-2 font-mono text-[13px] font-bold ${w[key] ? 'border-transparent text-ok' : 'border-line text-ink-soft hover:border-brass'}`}
-            >
-              {w[key] ? new Date(w[key]).toTimeString().slice(0, 8) : 'Ketuk saat terjadi'}
-            </button>
-            <div className="mt-1.5">
-              <div className="mb-0.5 text-[10px] text-ink-soft">atau atur manual</div>
-              <div className="flex gap-1">
-                <input
-                  type="date"
-                  aria-label={`Tanggal ${kode}`}
-                  value={keInputTanggal(w[key])}
-                  onChange={(e) => setStempelManual(key, { tanggal: e.target.value })}
-                  className="min-w-0 flex-1 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
-                />
-                <input
-                  type="time"
-                  aria-label={`Jam ${kode}`}
-                  value={keInputJam(w[key])}
-                  onChange={(e) => setStempelManual(key, { jam: e.target.value })}
-                  className="w-[72px] flex-shrink-0 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
-                />
+        {STAMP_DEFS.map(([key, kode, label], i) => {
+          const terisi = !!w[key]
+          const wajib = i === 0
+          const beda = selisihTahapSebelumnya(i)
+          return (
+            <div key={key} className={`flex flex-col rounded-xl border p-3 ${beda?.mundur ? 'border-bad bg-bad-bg' : terisi ? 'border-[#BFE0CD] bg-ok-bg' : 'border-line bg-white'}`}>
+              <div className="mb-1 flex items-center gap-1.5">
+                {/* Nomor tahap: menegaskan ini urutan berjalan, bukan tiga kolom setara. */}
+                <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${terisi ? 'bg-ok text-white' : 'bg-paper-dim text-ink-soft'}`}>
+                  {terisi ? '✓' : i + 1}
+                </span>
+                <span className="font-display text-[12.5px] font-bold leading-tight text-navy-900">{kode}</span>
+                {wajib && <Wajib />}
+              </div>
+              <div className="mb-2 min-h-[28px] text-[10.5px] leading-tight text-ink-soft">{label}</div>
+
+              {terisi ? (
+                <div className="mb-1.5 text-center">
+                  <div className="font-mono text-[19px] font-bold leading-none text-ok">{keInputJam(w[key])}</div>
+                  <div className="mt-0.5 text-[10px] text-ink-soft">{keInputTanggal(w[key]).split('-').reverse().join('/')}</div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => tapStamp(key)}
+                  className="mb-1.5 w-full rounded-lg border border-line py-2 text-[12px] font-semibold text-ink-soft hover:border-brass hover:text-navy-900"
+                >
+                  Ketuk saat terjadi
+                </button>
+              )}
+
+              {beda && (
+                <div className={`mb-1.5 rounded-md px-2 py-1 text-[10.5px] ${beda.mundur ? 'bg-bad text-white' : 'bg-white/70 text-ink-soft'}`}>
+                  {beda.mundur
+                    ? `⚠ Mendahului "${beda.judulSebelum}" sejauh ${beda.teks}`
+                    : `+${beda.teks} dari "${beda.judulSebelum}"`}
+                </div>
+              )}
+
+              <div className="mt-auto">
+                <div className="mb-0.5 text-[10px] text-ink-soft">{terisi ? 'Ubah manual' : 'atau atur manual'}</div>
+                <div className="flex gap-1">
+                  <input
+                    type="date"
+                    aria-label={`Tanggal ${kode}`}
+                    max={keInputTanggal(new Date().toISOString())}
+                    value={keInputTanggal(w[key])}
+                    onChange={(e) => setStempelManual(key, { tanggal: e.target.value })}
+                    className="min-w-0 flex-1 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
+                  />
+                  <input
+                    type="time"
+                    aria-label={`Jam ${kode}`}
+                    value={keInputJam(w[key])}
+                    onChange={(e) => setStempelManual(key, { jam: e.target.value })}
+                    className="w-[72px] flex-shrink-0 rounded-lg border border-line bg-white px-1.5 py-1 text-[11px]"
+                  />
+                </div>
+                {/* Dulu membatalkan stempel hanya bisa dengan mengetuk ulang
+                    tombolnya — tidak ada petunjuk apa pun bahwa itu caranya. */}
+                {terisi && (
+                  <button
+                    type="button"
+                    onClick={() => tapStamp(key)}
+                    className="mt-1 w-full rounded-lg py-1 text-[10.5px] font-semibold text-bad hover:bg-bad-bg"
+                  >
+                    Hapus stempel
+                  </button>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="rounded-xl bg-navy-900 p-4 text-white">
-        <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-white/60">Rentang terhitung otomatis</div>
+        <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-white/60">Capaian terhadap sasaran</div>
         {[
-          ['Waktu tanggap penanganan', 'waktu_diterima', 'waktu_penanganan', SASARAN_WAKTU_TANGGAP.penanganan],
-          ['Penyelesaian laporan', 'waktu_diterima', 'waktu_selesai', SASARAN_WAKTU_TANGGAP.selesai],
-        ].map(([label, a, b, batas]) => {
+          ['Waktu tanggap penanganan', 'waktu_diterima', 'waktu_penanganan', SASARAN_WAKTU_TANGGAP.penanganan, '45 menit'],
+          ['Penyelesaian laporan', 'waktu_diterima', 'waktu_selesai', SASARAN_WAKTU_TANGGAP.selesai, '24 jam'],
+        ].map(([label, a, b, batas, sasaran]) => {
           const r = rentang(a, b, batas)
           return (
-            <div key={label} className="flex justify-between border-b border-dashed border-white/10 py-1.5 text-[12.5px] last:border-none">
-              <span>{label}</span>
-              <span className={`font-mono font-bold ${!r ? 'text-white/40' : r.lewat ? 'text-[#F0A582]' : 'text-[#7FD8A8]'}`}>{r ? `${r.mm}m ${r.ss}d${r.lewat ? ' · lampaui sasaran' : ''}` : 'belum lengkap'}</span>
+            <div key={label} className="flex items-center justify-between gap-3 border-b border-dashed border-white/10 py-2 text-[12.5px] last:border-none">
+              <div>
+                <div>{label}</div>
+                <div className="text-[10.5px] text-white/45">Sasaran {sasaran}</div>
+              </div>
+              <span className={`flex-shrink-0 text-right font-mono text-[13px] font-bold ${!r ? 'text-white/35' : r.lewat ? 'text-[#F0A582]' : 'text-[#7FD8A8]'}`}>
+                {r ? r.teks : 'belum lengkap'}
+                {r?.lewat && <div className="text-[10px] font-semibold">lampaui sasaran</div>}
+              </span>
             </div>
           )
         })}
