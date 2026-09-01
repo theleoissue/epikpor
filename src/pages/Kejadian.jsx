@@ -55,7 +55,10 @@ export default function Kejadian() {
   const [statusTersangka, setStatusTersangka] = useState('BELUM_DIKETAHUI')
   const [namaTersangka, setNamaTersangka] = useState('')
   const [tabrakLari, setTabrakLari] = useState(false)
-  const [tkpDitangani, setTkpDitangani] = useState(true)
+  // Nilai awal "belum", bukan "sudah". Sebelumnya formulir mengklaim olah TKP
+  // sudah dilakukan sebelum petugas menyatakan apa pun — laporan bisa terkirim
+  // dengan pengakuan yang tidak pernah dibuat siapa pun.
+  const [tkpDitangani, setTkpDitangani] = useState(false)
   const [kendaraanDiamankan, setKendaraanDiamankan] = useState(false)
   const [kerugian, setKerugian] = useState('')
   const [kronologisPra, setKronologisPra] = useState('')
@@ -136,7 +139,7 @@ export default function Kejadian() {
 
   function resetForm() {
     setW({}); setLokasi(''); setJenisKecelakaanId(''); setTipeTabrakanId(''); setStatusPenanganan('MASIH_DALAM_PENANGANAN')
-    setStatusTersangka('BELUM_DIKETAHUI'); setNamaTersangka(''); setTabrakLari(false); setTkpDitangani(true); setKendaraanDiamankan(false)
+    setStatusTersangka('BELUM_DIKETAHUI'); setNamaTersangka(''); setTabrakLari(false); setTkpDitangani(false); setKendaraanDiamankan(false)
     setKerugian(''); setKronologisPra(''); setKronologisSaat(''); setKronologisPasca('')
     setFaktorManusia([]); setFaktorManusiaLainnya(''); setFaktorKendaraan([]); setFaktorKendaraanLainnya('')
     setFaktorJalan({}); setFaktorCuaca({}); setTindakan([]); setTindakanLainnya('')
@@ -168,7 +171,7 @@ export default function Kejadian() {
   async function submit() {
     // Seluruh kekurangan ditampilkan sekaligus, bukan satu per satu tiap kali
     // tombol kirim ditekan.
-    const salah = periksaFormulirKejadian({ w, lokasi, jenisKecelakaanId, tipeTabrakanId, kendaraan, orang, kerugian })
+    const salah = periksaFormulirKejadian({ w, lokasi, jenisKecelakaanId, tipeTabrakanId, kendaraan, orang, kerugian, statusTersangka, namaTersangka })
     if (salah.length) {
       setDaftarSalah(salah)
       return toast(`${salah.length} isian perlu diperbaiki sebelum dikirim`, true)
@@ -333,22 +336,65 @@ export default function Kejadian() {
       </div>
 
       <div className="rounded-[14px] border border-line bg-white p-5">
-        <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Status Kejadian &amp; Penanganan</h3>
-        <div className="mb-3 grid grid-cols-2 gap-3">
-          <Select value={statusPenanganan} onChange={(e) => setStatusPenanganan(e.target.value)}>
-            <option value="MASIH_DALAM_PENANGANAN">Masih Dalam Penanganan</option>
-            <option value="SELESAI_DITANGANI_DI_TKP">Selesai Ditangani di TKP</option>
-          </Select>
-          <Select value={statusTersangka} onChange={(e) => setStatusTersangka(e.target.value)}>
-            <option value="BELUM_DIKETAHUI">Belum Diketahui</option>
-            <option value="SUDAH_DIKETAHUI">Sudah Diketahui</option>
-          </Select>
+        <h3 className="mb-1 font-display text-[14.5px] font-semibold">Status Kejadian &amp; Penanganan</h3>
+        <p className="mb-3.5 text-[11px] text-ink-soft">Semua pertanyaan di bawah wajib dijawab tegas — tidak ada yang terisi otomatis.</p>
+
+        {/* Dulu bagian ini berisi dua daftar pilihan tanpa keterangan sama
+            sekali, sehingga "Belum Diketahui" berdiri sendiri tanpa penjelasan
+            belum diketahui apanya, dan tiga kotak centang campur aduk antara
+            urusan penanganan TKP dengan urusan pelaku. Sekarang dipisah jadi
+            dua kelompok, dan tiap pertanyaan punya keterangannya sendiri. */}
+        <div className="mb-4">
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Penanganan di lapangan</div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Status perkara</label>
+              <Select value={statusPenanganan} onChange={(e) => setStatusPenanganan(e.target.value)}>
+                <option value="MASIH_DALAM_PENANGANAN">Masih dalam penanganan</option>
+                <option value="SELESAI_DITANGANI_DI_TKP">Selesai ditangani di TKP</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Olah TKP</label>
+              <Select value={tkpDitangani ? 'ya' : 'belum'} onChange={(e) => setTkpDitangani(e.target.value === 'ya')}>
+                <option value="belum">Belum dilakukan</option>
+                <option value="ya">Sudah dilakukan</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Kendaraan diamankan</label>
+              <Select value={kendaraanDiamankan ? 'ya' : 'belum'} onChange={(e) => setKendaraanDiamankan(e.target.value === 'ya')}>
+                <option value="belum">Belum diamankan</option>
+                <option value="ya">Sudah diamankan</option>
+              </Select>
+            </div>
+          </div>
         </div>
-        {statusTersangka === 'SUDAH_DIKETAHUI' && <Field value={namaTersangka} onChange={(e) => setNamaTersangka(e.target.value)} placeholder="Nama tersangka/terlapor" className="mb-3 w-full" />}
-        <div className="flex flex-col gap-2 text-[12.5px]">
-          <label className="flex items-center gap-2"><input type="checkbox" checked={tabrakLari} onChange={(e) => setTabrakLari(e.target.checked)} /> Termasuk kasus tabrak lari</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={tkpDitangani} onChange={(e) => setTkpDitangani(e.target.checked)} /> TKP sudah ditangani</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={kendaraanDiamankan} onChange={(e) => setKendaraanDiamankan(e.target.checked)} /> Kendaraan sudah diamankan</label>
+
+        <div className="border-t border-dashed border-paper-dim pt-3.5">
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Pelaku / tersangka</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Termasuk tabrak lari?</label>
+              <Select value={tabrakLari ? 'ya' : 'tidak'} onChange={(e) => setTabrakLari(e.target.value === 'ya')}>
+                <option value="tidak">Bukan tabrak lari</option>
+                <option value="ya">Ya, tabrak lari</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Identitas tersangka</label>
+              <Select value={statusTersangka} onChange={(e) => setStatusTersangka(e.target.value)}>
+                <option value="BELUM_DIKETAHUI">Belum diketahui</option>
+                <option value="SUDAH_DIKETAHUI">Sudah diketahui</option>
+              </Select>
+            </div>
+          </div>
+          {statusTersangka === 'SUDAH_DIKETAHUI' && (
+            <div className="mt-3">
+              <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Nama tersangka / terlapor<Wajib /></label>
+              <Field value={namaTersangka} onChange={(e) => setNamaTersangka(e.target.value)} placeholder="Nama lengkap" className="w-full" />
+            </div>
+          )}
         </div>
       </div>
 

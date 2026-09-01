@@ -119,7 +119,7 @@ export function orangBaru(id) {
 // ---------- Pemeriksaan sebelum kirim ----------
 // Dikumpulkan jadi daftar supaya petugas melihat SEMUA yang kurang sekaligus,
 // bukan diberi tahu satu per satu tiap kali menekan kirim.
-export function periksaFormulirKejadian({ w, lokasi, jenisKecelakaanId, tipeTabrakanId, kendaraan, orang, kerugian }) {
+export function periksaFormulirKejadian({ w, lokasi, jenisKecelakaanId, tipeTabrakanId, kendaraan, orang, kerugian, statusTersangka, namaTersangka }) {
   const salah = []
   const nama = { waktu_diterima: 'Laporan Diterima', waktu_penanganan: 'Dalam Penanganan', waktu_selesai: 'Laporan Selesai' }
 
@@ -141,6 +141,12 @@ export function periksaFormulirKejadian({ w, lokasi, jenisKecelakaanId, tipeTabr
 
   if (kerugian !== '' && kerugian !== null && Number(kerugian) < 0) {
     salah.push('Kerugian materiil tidak boleh bernilai negatif.')
+  }
+
+  // Menyatakan identitas tersangka sudah diketahui tapi membiarkan namanya
+  // kosong membuat laporan mengklaim sesuatu yang tidak ia sebutkan.
+  if (statusTersangka === 'SUDAH_DIKETAHUI' && !namaTersangka?.trim()) {
+    salah.push('Identitas tersangka dinyatakan sudah diketahui, tetapi namanya belum diisi.')
   }
 
   kendaraan.forEach((k, i) => {
