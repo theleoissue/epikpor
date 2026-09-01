@@ -6,6 +6,8 @@
 // baris, serta mengenal *tebal* dan _miring_. Tiap seksi dipisah satu baris
 // kosong supaya tidak menyatu jadi satu blok teks yang sulit dibaca di HP.
 
+import { KELENGKAPAN_DEF, kalimatKelengkapan } from './opsiKejadian'
+
 // U+2733 + U+FE0F — varian emoji dari tanda bintang, tampil hijau di WhatsApp.
 // Tanpa U+FE0F, karakter ini tampil sebagai teks hitam biasa.
 const BINTANG = '✳️'
@@ -13,6 +15,10 @@ const BINTANG = '✳️'
 const SINGKAT = { LUKA_RINGAN: 'LR', LUKA_BERAT: 'LB', MENINGGAL_DUNIA: 'MD', DALAM_PERAWATAN: 'Dalam Perawatan' }
 const isi = (v) => (v === undefined || v === null || v === '' ? '-' : v)
 const huruf = (i) => String.fromCharCode(97 + i)
+
+// Korban tabrak lari sering belum diketahui namanya — dinyatakan terbuka
+// daripada dicetak sebagai tanda hubung yang ambigu.
+const namaOrang = (p) => (p.nama?.trim() ? p.nama.trim() : 'Belum teridentifikasi')
 
 function sapaan(iso) {
   const h = iso ? new Date(iso).getHours() : 0
@@ -73,7 +79,7 @@ export function buildLaporanKejadianWA(x, kasat = null) {
     ? ov.map((p, i) => {
         const jk = p.jenis_kelamin === 'P' ? 'Perempuan' : p.jenis_kelamin === 'L' ? 'Laki-laki' : '-'
         return [
-          `${huruf(i)}. *${isi(p.nama)}*`,
+          `${huruf(i)}. *${namaOrang(p)}*`,
           `    ${jk}, ${isi(p.pekerjaan)}`,
           `    Lahir: ${isi(p.tempat_lahir)}, ${tanggalSingkat(p.tanggal_lahir)}`,
           `    Alamat: ${isi(p.alamat)}`,
@@ -85,7 +91,7 @@ export function buildLaporanKejadianWA(x, kasat = null) {
   const korbanList = ov.filter((p) => p.kondisi && p.kondisi !== 'SELAMAT')
   const korbanTeks = korbanList.length
     ? korbanList.map((p, i) =>
-        `${i + 1}. Sdr/Sdri. *${isi(p.nama)}* (${SINGKAT[p.kondisi] || p.kondisi})` +
+        `${i + 1}. Sdr/Sdri. *${namaOrang(p)}* (${SINGKAT[p.kondisi] || p.kondisi})` +
         (p.rs_rujukan ? ` — dibawa ke ${p.rs_rujukan}` : '')).join('\n')
     : 'Nihil'
 
@@ -93,11 +99,8 @@ export function buildLaporanKejadianWA(x, kasat = null) {
     ? ov.map((p, i) => {
         const k = p.kelengkapan || {}
         return [
-          `${huruf(i)}. Sdr/Sdri. ${isi(p.nama)}`,
-          `    - ${k.stnk ? 'Membawa STNK' : 'Tidak membawa STNK'}`,
-          `    - ${k.sim ? `Membawa SIM${k.sim_jenis ? ' ' + k.sim_jenis : ''}` : 'Tidak membawa SIM'}`,
-          `    - ${k.ktp ? 'Membawa KTP' : 'Tidak membawa KTP'}`,
-          `    - ${k.helm_sabuk ? 'Menggunakan helm/sabuk pengaman' : 'Tidak menggunakan helm/sabuk pengaman'}`,
+          `${huruf(i)}. Sdr/Sdri. ${namaOrang(p)}`,
+          ...KELENGKAPAN_DEF.map(([kunci]) => `    - ${kalimatKelengkapan(kunci, k[kunci], k.sim_jenis)}`),
         ].join('\n')
       }).join('\n\n')
     : '-'
@@ -109,9 +112,15 @@ export function buildLaporanKejadianWA(x, kasat = null) {
   // Hanya mencetak yang benar-benar terisi. Versi lama selalu mencetak lebar
   // jalan, kontur, lingkungan, dan kepadatan arus sebagai "(tidak diketahui)"
   // padahal keempatnya tidak pernah ada di formulir.
+  const fj = x.faktor_jalan || {}
+  const fc = x.faktor_cuaca || {}
   const lingkungan = [
-    x.faktor_jalan?.kondisiPermukaan ? `- Kondisi jalan: ${x.faktor_jalan.kondisiPermukaan}` : null,
-    x.faktor_cuaca?.cuaca ? `- Cuaca: ${x.faktor_cuaca.cuaca}` : null,
+    fj.kondisiPermukaan ? `- Kondisi jalan: ${fj.kondisiPermukaan}` : null,
+    fj.kontur ? `- Kontur jalan: ${fj.kontur}` : null,
+    fj.lebarJalan ? `- Lebar jalan: ${fj.lebarJalan} meter` : null,
+    fc.cuaca ? `- Cuaca: ${fc.cuaca}` : null,
+    fc.lingkungan ? `- Lingkungan: ${fc.lingkungan}` : null,
+    fc.kepadatan ? `- Kepadatan arus: ${fc.kepadatan}` : null,
   ].filter(Boolean)
 
   const akibatTeks = [

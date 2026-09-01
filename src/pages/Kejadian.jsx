@@ -8,17 +8,25 @@ import { kirimLaporanKejadian, tambahLampiranKejadian } from '../lib/laporanKeja
 import { unggahFoto, getGeoPosition } from '../lib/storage'
 import { tambahAntrean } from '../lib/offlineQueue'
 import { SASARAN_WAKTU_TANGGAP, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
+import {
+  JENIS_KELAMIN_OPT, PERAN_ORANG_OPT, KONDISI_OPT, SIM_JENIS_OPT,
+  KELENGKAPAN_DEF, STATUS_KELENGKAPAN_OPT, BELUM_DIPERIKSA, ADA,
+  KATEGORI_KENDARAAN, FAKTOR_MANUSIA_OPT, FAKTOR_KENDARAAN_OPT, TINDAKAN_OPT,
+  KONDISI_JALAN_OPT, KONTUR_JALAN_OPT, CUACA_OPT, LINGKUNGAN_OPT, KEPADATAN_OPT,
+  kendaraanBaru, orangBaru, periksaFormulirKejadian,
+} from '../lib/opsiKejadian'
 
 const STAMP_DEFS = [
   ['waktu_diterima', 'Laporan Diterima', 'Panggilan / laporan masuk'],
   ['waktu_penanganan', 'Dalam Penanganan', 'Petugas tiba dan menangani TKP'],
   ['waktu_selesai', 'Laporan Selesai', 'Penanganan dinyatakan selesai'],
 ]
-const FAKTOR_MANUSIA_OPT = ['Lengah/Tidak Konsentrasi', 'Mengantuk', 'Melanggar Rambu/Marka', 'Melebihi Batas Kecepatan', 'Tidak Menjaga Jarak Aman', 'Di Bawah Pengaruh Alkohol/Obat', 'Kurang Terampil/Belum Mahir', 'Dalam Proses Penyelidikan']
-const FAKTOR_KENDARAAN_OPT = ['Kendaraan Laik Jalan', 'Rem Blong/Tidak Berfungsi', 'Ban Pecah/Gundul', 'Lampu Tidak Berfungsi', 'Muatan Berlebih', 'Modifikasi Tidak Sesuai Standar']
-const TINDAKAN_OPT = ['Menerima Laporan', 'Mendatangi TKP dan Olah TKP', 'Mendata Identitas yang Terlibat', 'Mendata Saksi-saksi', 'Mengecek Korban ke Rumah Sakit', 'Melaporkan kepada Pimpinan']
-const KATEGORI_KENDARAAN = ['Sepeda Motor', 'Mobil Penumpang', 'Mobil Barang / Truk', 'Bus', 'Angkutan Umum', 'Sepeda / Tidak Bermotor', 'Lainnya']
-const KONDISI_OPT = [['SELAMAT', 'Selamat'], ['LUKA_RINGAN', 'Luka Ringan'], ['LUKA_BERAT', 'Luka Berat'], ['MENINGGAL_DUNIA', 'Meninggal Dunia'], ['DALAM_PERAWATAN', 'Dalam Perawatan']]
+
+// Penanda kolom wajib — sebelumnya tidak ada, petugas baru tahu ada yang
+// kurang setelah menekan kirim dan ditolak.
+function Wajib() {
+  return <span className="text-bad" title="Wajib diisi"> *</span>
+}
 
 function Chip({ aktif, onClick, children }) {
   return (
@@ -66,6 +74,7 @@ export default function Kejadian() {
   const [kendaraan, setKendaraan] = useState([])
   const [orang, setOrang] = useState([])
   const [foto, setFoto] = useState([])
+  const [daftarSalah, setDaftarSalah] = useState([])
   const idSementaraRef = useRef(1)
 
   useEffect(() => {
@@ -104,10 +113,13 @@ export default function Kejadian() {
   }
 
   function tambahKendaraan() {
-    setKendaraan((k) => [...k, { idSementara: idSementaraRef.current++, kategori: 'Sepeda Motor', merk: '', nopol: '' }])
+    setKendaraan((k) => [...k, kendaraanBaru(idSementaraRef.current++)])
   }
   function tambahOrang() {
-    setOrang((o) => [...o, { idSementara: idSementaraRef.current++, nama: '', jenisKelamin: 'L', pekerjaan: '', tempatLahir: '', tanggalLahir: '', alamat: '', peran: 'Pengendara Motor', kendaraanIdSementara: '', kondisi: 'SELAMAT', rsRujukan: '', kelengkapan: { stnk: false, sim: false, sim_jenis: '', ktp: false, helm_sabuk: false } }])
+    setOrang((o) => [...o, orangBaru(idSementaraRef.current++)])
+  }
+  function ubahOrang(id, tambalan) {
+    setOrang((arr) => arr.map((x) => (x.idSementara === id ? { ...x, ...tambalan } : x)))
   }
 
   const akibat = {
@@ -144,15 +156,24 @@ export default function Kejadian() {
       faktor_kendaraan: { checked: faktorKendaraan, lainnya: faktorKendaraanLainnya.trim() },
       faktor_jalan: faktorJalan, faktor_cuaca: faktorCuaca,
       tindakan: { checked: tindakan, lainnya: tindakanLainnya.trim() },
-      rtl, personel_tambahan: personelTambahan,
+      // Baris yang ditambah lalu dibiarkan kosong dibuang di sini — kalau
+      // ikut tersimpan, laporan mencetak butir bernomor yang isinya kosong.
+      rtl: rtl.map((r) => r.trim()).filter(Boolean),
+      personel_tambahan: personelTambahan.map((p) => p.trim()).filter(Boolean),
       zona_id: profil.zona_id, regu_id: profil.regu_id, sesi_piket_id: sesi?.id || null,
       pelapor_id: profil.id, pelapor_nama: profil.nama, pelapor_pangkat: profil.pangkat, pelapor_nrp: profil.nrp,
     }
   }
 
   async function submit() {
-    if (!w.waktu_diterima) return toast('Ketuk stempel "Laporan Diterima" terlebih dahulu', true)
-    if (!lokasi.trim() || !jenisKecelakaanId || !tipeTabrakanId) return toast('Lengkapi lokasi, jenis kecelakaan, dan tipe tabrakan', true)
+    // Seluruh kekurangan ditampilkan sekaligus, bukan satu per satu tiap kali
+    // tombol kirim ditekan.
+    const salah = periksaFormulirKejadian({ w, lokasi, jenisKecelakaanId, tipeTabrakanId, kendaraan, orang, kerugian })
+    if (salah.length) {
+      setDaftarSalah(salah)
+      return toast(`${salah.length} isian perlu diperbaiki sebelum dikirim`, true)
+    }
+    setDaftarSalah([])
     setMengirim(true)
 
     if (!navigator.onLine) {
@@ -246,16 +267,23 @@ export default function Kejadian() {
 
       <div className="rounded-[14px] border border-line bg-white p-5">
         <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Lokasi &amp; Klasifikasi</h3>
-        <Field value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Lokasi kejadian" className="mb-3 w-full" />
+        <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Lokasi kejadian<Wajib /></label>
+        <Field value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="mis. Jl. Pajajaran No. 92, Pamoyanan" className="mb-3 w-full" />
         <div className="grid grid-cols-2 gap-3">
-          <Select value={jenisKecelakaanId} onChange={(e) => setJenisKecelakaanId(e.target.value)}>
-            <option value="">Jenis kecelakaan —</option>
-            {jenisKecelakaanList.map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-          </Select>
-          <Select value={tipeTabrakanId} onChange={(e) => setTipeTabrakanId(e.target.value)}>
-            <option value="">Tipe tabrakan —</option>
-            {tipeTabrakanList.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
-          </Select>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Jenis kecelakaan<Wajib /></label>
+            <Select value={jenisKecelakaanId} onChange={(e) => setJenisKecelakaanId(e.target.value)}>
+              <option value="">— Pilih —</option>
+              {jenisKecelakaanList.map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Tipe tabrakan<Wajib /></label>
+            <Select value={tipeTabrakanId} onChange={(e) => setTipeTabrakanId(e.target.value)}>
+              <option value="">— Pilih —</option>
+              {tipeTabrakanList.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -288,10 +316,13 @@ export default function Kejadian() {
         {kendaraan.map((k) => (
           <div key={k.idSementara} className="mb-2 grid grid-cols-[1fr_1.3fr_1fr_auto] gap-2 rounded-lg border border-line p-2">
             <Select value={k.kategori} onChange={(e) => setKendaraan((arr) => arr.map((x) => x.idSementara === k.idSementara ? { ...x, kategori: e.target.value } : x))}>
+              <option value="">— Kategori * —</option>
               {KATEGORI_KENDARAAN.map((c) => <option key={c}>{c}</option>)}
             </Select>
             <Field value={k.merk} onChange={(e) => setKendaraan((arr) => arr.map((x) => x.idSementara === k.idSementara ? { ...x, merk: e.target.value } : x))} placeholder="Merk / tipe" />
-            <Field value={k.nopol} onChange={(e) => setKendaraan((arr) => arr.map((x) => x.idSementara === k.idSementara ? { ...x, nopol: e.target.value } : x))} placeholder="Nomor polisi" />
+            {/* Nopol selalu disimpan huruf besar supaya pencarian arsip tidak
+                meleset gara-gara beda huruf kecil/besar. */}
+            <Field value={k.nopol} onChange={(e) => setKendaraan((arr) => arr.map((x) => x.idSementara === k.idSementara ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="Nomor polisi" />
             <button onClick={() => setKendaraan((arr) => arr.filter((x) => x.idSementara !== k.idSementara))} className="rounded-lg bg-bad-bg px-2 text-bad">✕</button>
           </div>
         ))}
@@ -309,37 +340,78 @@ export default function Kejadian() {
               <span>Orang #{i + 1}</span>
               <button onClick={() => setOrang((arr) => arr.filter((x) => x.idSementara !== o.idSementara))} className="rounded-lg bg-bad-bg px-2 py-0.5 text-bad">✕</button>
             </div>
+            <label className="mb-2 flex items-center gap-2 text-[11.5px]">
+              <input
+                type="checkbox"
+                checked={o.belumTeridentifikasi}
+                onChange={(e) => ubahOrang(o.idSementara, { belumTeridentifikasi: e.target.checked, ...(e.target.checked ? { nama: '' } : {}) })}
+              />
+              Belum teridentifikasi <span className="text-ink-soft">(mis. korban tabrak lari)</span>
+            </label>
             <div className="mb-2 grid grid-cols-3 gap-2">
-              <Field value={o.nama} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, nama: e.target.value } : x))} placeholder="Nama lengkap" />
-              <Select value={o.jenisKelamin} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, jenisKelamin: e.target.value } : x))}>
-                <option value="L">Laki-laki</option><option value="P">Perempuan</option>
+              <Field
+                value={o.belumTeridentifikasi ? '' : o.nama}
+                disabled={o.belumTeridentifikasi}
+                onChange={(e) => ubahOrang(o.idSementara, { nama: e.target.value })}
+                placeholder={o.belumTeridentifikasi ? 'Belum teridentifikasi' : 'Nama lengkap *'}
+              />
+              <Select value={o.jenisKelamin} onChange={(e) => ubahOrang(o.idSementara, { jenisKelamin: e.target.value })}>
+                <option value="">— Jenis kelamin —</option>
+                {JENIS_KELAMIN_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
-              <Field value={o.pekerjaan} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, pekerjaan: e.target.value } : x))} placeholder="Pekerjaan" />
+              <Field value={o.pekerjaan} onChange={(e) => ubahOrang(o.idSementara, { pekerjaan: e.target.value })} placeholder="Pekerjaan" />
             </div>
             <div className="mb-2 grid grid-cols-3 gap-2">
-              <Select value={o.peran} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, peran: e.target.value } : x))}>
-                {['Pengendara Motor', 'Pengemudi Mobil', 'Penumpang', 'Pejalan Kaki', 'Lainnya'].map((p) => <option key={p}>{p}</option>)}
+              <Field value={o.tempatLahir} onChange={(e) => ubahOrang(o.idSementara, { tempatLahir: e.target.value })} placeholder="Tempat lahir" />
+              <Field
+                type="date" aria-label="Tanggal lahir"
+                max={new Date().toISOString().slice(0, 10)}
+                value={o.tanggalLahir}
+                onChange={(e) => ubahOrang(o.idSementara, { tanggalLahir: e.target.value })}
+              />
+              <Field value={o.alamat} onChange={(e) => ubahOrang(o.idSementara, { alamat: e.target.value })} placeholder="Alamat" />
+            </div>
+            <div className="mb-2 grid grid-cols-3 gap-2">
+              <Select value={o.peran} onChange={(e) => ubahOrang(o.idSementara, { peran: e.target.value })}>
+                <option value="">— Peran —</option>
+                {PERAN_ORANG_OPT.map((p) => <option key={p}>{p}</option>)}
               </Select>
-              <Select value={o.kendaraanIdSementara} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, kendaraanIdSementara: e.target.value } : x))}>
-                <option value="">— Naik kendaraan —</option>
-                {kendaraan.map((k) => <option key={k.idSementara} value={k.idSementara}>{k.kategori} {k.merk}</option>)}
+              <Select value={o.kendaraanIdSementara} onChange={(e) => ubahOrang(o.idSementara, { kendaraanIdSementara: e.target.value })}>
+                <option value="">— Tanpa kendaraan —</option>
+                {kendaraan.map((k) => <option key={k.idSementara} value={k.idSementara}>{[k.kategori, k.merk, k.nopol].filter(Boolean).join(' ') || 'Kendaraan tanpa data'}</option>)}
               </Select>
-              <Select value={o.kondisi} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, kondisi: e.target.value } : x))}>
+              <Select value={o.kondisi} onChange={(e) => ubahOrang(o.idSementara, { kondisi: e.target.value })}>
+                <option value="">— Kondisi * —</option>
                 {KONDISI_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
             </div>
-            {o.kondisi !== 'SELAMAT' && <Field value={o.rsRujukan} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, rsRujukan: e.target.value } : x))} placeholder="RS rujukan" className="mb-2 w-full" />}
-            <div className="flex flex-wrap gap-3 border-t border-dashed border-paper-dim pt-2 text-[11.5px]">
-              {['stnk', 'ktp', 'helm_sabuk'].map((f) => (
-                <label key={f} className="flex items-center gap-1.5">
-                  <input type="checkbox" checked={o.kelengkapan[f]} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, kelengkapan: { ...x.kelengkapan, [f]: e.target.checked } } : x))} />
-                  {f === 'stnk' ? 'STNK' : f === 'ktp' ? 'KTP' : 'Helm/Sabuk'}
-                </label>
-              ))}
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={o.kelengkapan.sim} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, kelengkapan: { ...x.kelengkapan, sim: e.target.checked } } : x))} /> SIM
-              </label>
-              {o.kelengkapan.sim && <Field value={o.kelengkapan.sim_jenis} onChange={(e) => setOrang((arr) => arr.map((x) => x.idSementara === o.idSementara ? { ...x, kelengkapan: { ...x.kelengkapan, sim_jenis: e.target.value } } : x))} placeholder="Jenis (C/A)" className="w-20" />}
+            {o.kondisi && o.kondisi !== 'SELAMAT' && (
+              <Field value={o.rsRujukan} onChange={(e) => ubahOrang(o.idSementara, { rsRujukan: e.target.value })} placeholder="RS rujukan" className="mb-2 w-full" />
+            )}
+            <div className="border-t border-dashed border-paper-dim pt-2">
+              <div className="mb-1.5 text-[11px] font-semibold text-ink-soft">Kelengkapan berkendara</div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {KELENGKAPAN_DEF.map(([kunci, label]) => (
+                  <div key={kunci}>
+                    <label className="mb-0.5 block text-[10.5px] text-ink-soft">{label}</label>
+                    <Select
+                      value={o.kelengkapan[kunci] || BELUM_DIPERIKSA}
+                      onChange={(e) => ubahOrang(o.idSementara, { kelengkapan: { ...o.kelengkapan, [kunci]: e.target.value } })}
+                    >
+                      {STATUS_KELENGKAPAN_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </Select>
+                  </div>
+                ))}
+              </div>
+              {o.kelengkapan.sim === ADA && (
+                <div className="mt-2 w-40">
+                  <label className="mb-0.5 block text-[10.5px] text-ink-soft">Jenis SIM<Wajib /></label>
+                  <Select value={o.kelengkapan.sim_jenis} onChange={(e) => ubahOrang(o.idSementara, { kelengkapan: { ...o.kelengkapan, sim_jenis: e.target.value } })}>
+                    <option value="">— Pilih —</option>
+                    {SIM_JENIS_OPT.map((s) => <option key={s}>{s}</option>)}
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -355,7 +427,8 @@ export default function Kejadian() {
             </div>
           ))}
         </div>
-        <Field type="number" value={kerugian} onChange={(e) => setKerugian(e.target.value)} placeholder="Kerugian materiil (Rp)" className="w-full" />
+        <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Kerugian materiil (Rp)</label>
+        <Field type="number" min="0" step="1000" value={kerugian} onChange={(e) => setKerugian(e.target.value)} placeholder="Kosongkan bila belum dihitung" className="w-full" />
       </div>
 
       <div className="rounded-[14px] border border-line bg-white p-5 space-y-3">
@@ -377,13 +450,51 @@ export default function Kejadian() {
         </div>
         <div>
           <div className="mb-1.5 text-[11px] font-semibold text-ink-soft">C. Faktor Jalan &amp; Cuaca</div>
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={faktorJalan.kondisiPermukaan || ''} onChange={(e) => setFaktorJalan((f) => ({ ...f, kondisiPermukaan: e.target.value }))}>
-              <option value="">Kondisi jalan —</option><option>Aspal Baik</option><option>Aspal Rusak/Berlubang</option><option>Jalan Licin</option>
-            </Select>
-            <Select value={faktorCuaca.cuaca || ''} onChange={(e) => setFaktorCuaca((f) => ({ ...f, cuaca: e.target.value }))}>
-              <option value="">Cuaca —</option><option>Cerah</option><option>Mendung</option><option>Hujan</option><option>Berkabut</option>
-            </Select>
+          <p className="mb-2 text-[11px] text-ink-soft">Boleh dikosongkan bila belum diketahui — yang kosong tidak akan dicetak di laporan.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div>
+              <label className="mb-0.5 block text-[10.5px] text-ink-soft">Kondisi permukaan</label>
+              <Select value={faktorJalan.kondisiPermukaan || ''} onChange={(e) => setFaktorJalan((f) => ({ ...f, kondisiPermukaan: e.target.value }))}>
+                <option value="">— Belum diketahui —</option>
+                {KONDISI_JALAN_OPT.map((o) => <option key={o}>{o}</option>)}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[10.5px] text-ink-soft">Kontur jalan</label>
+              <Select value={faktorJalan.kontur || ''} onChange={(e) => setFaktorJalan((f) => ({ ...f, kontur: e.target.value }))}>
+                <option value="">— Belum diketahui —</option>
+                {KONTUR_JALAN_OPT.map((o) => <option key={o}>{o}</option>)}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[10.5px] text-ink-soft">Lebar jalan (meter)</label>
+              <Field
+                type="number" min="0" step="0.5" placeholder="mis. 7"
+                value={faktorJalan.lebarJalan || ''}
+                onChange={(e) => setFaktorJalan((f) => ({ ...f, lebarJalan: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[10.5px] text-ink-soft">Cuaca</label>
+              <Select value={faktorCuaca.cuaca || ''} onChange={(e) => setFaktorCuaca((f) => ({ ...f, cuaca: e.target.value }))}>
+                <option value="">— Belum diketahui —</option>
+                {CUACA_OPT.map((o) => <option key={o}>{o}</option>)}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[10.5px] text-ink-soft">Lingkungan</label>
+              <Select value={faktorCuaca.lingkungan || ''} onChange={(e) => setFaktorCuaca((f) => ({ ...f, lingkungan: e.target.value }))}>
+                <option value="">— Belum diketahui —</option>
+                {LINGKUNGAN_OPT.map((o) => <option key={o}>{o}</option>)}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[10.5px] text-ink-soft">Kepadatan arus</label>
+              <Select value={faktorCuaca.kepadatan || ''} onChange={(e) => setFaktorCuaca((f) => ({ ...f, kepadatan: e.target.value }))}>
+                <option value="">— Belum diketahui —</option>
+                {KEPADATAN_OPT.map((o) => <option key={o}>{o}</option>)}
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -426,6 +537,14 @@ export default function Kejadian() {
                 <button onClick={() => setFoto((arr) => arr.filter((_, idx) => idx !== i))} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-navy-950/75 text-[11px] text-white">✕</button>
               </div>
             ))}
+          </div>
+        )}
+        {daftarSalah.length > 0 && (
+          <div className="mt-4 rounded-lg border border-bad bg-bad-bg p-3">
+            <div className="mb-1.5 text-[12px] font-bold text-bad">Perlu diperbaiki sebelum dikirim:</div>
+            <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-bad">
+              {daftarSalah.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
           </div>
         )}
         <div className="mt-4 flex gap-2.5">

@@ -9,6 +9,11 @@ import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, 
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
 import { ambilKasatLantas } from '../lib/referensiApi'
+import {
+  KELENGKAPAN_DEF, STATUS_KELENGKAPAN_OPT, bacaStatusKelengkapan,
+  ADA, TIDAK_ADA, BELUM_DIPERIKSA, KONDISI_OPT, KATEGORI_KENDARAAN,
+  JENIS_KELAMIN_OPT, SIM_JENIS_OPT, orangBaru, kendaraanBaru,
+} from '../lib/opsiKejadian'
 import { buildLaporanKejadianWA } from '../lib/waReport'
 import { buatKolaseTkp, unduhBlob } from '../lib/kolase'
 
@@ -438,9 +443,6 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
 // formulir Kejadian menangkap faktor penyebab, tindakan, RTL, kelengkapan
 // surat, dan identitas lengkap — artinya laporan disahkan tanpa pernah
 // benar-benar terbaca.
-const LABEL_KELENGKAPAN = [['stnk', 'STNK'], ['sim', 'SIM'], ['ktp', 'KTP'], ['helm_sabuk', 'Helm/Sabuk']]
-const KONDISI_OPT = [['SELAMAT', 'Selamat'], ['LUKA_RINGAN', 'Luka Ringan'], ['LUKA_BERAT', 'Luka Berat'], ['MENINGGAL_DUNIA', 'Meninggal Dunia'], ['DALAM_PERAWATAN', 'Dalam Perawatan']]
-const KATEGORI_KENDARAAN = ['Sepeda Motor', 'Mobil Penumpang', 'Mobil Barang / Truk', 'Bus', 'Angkutan Umum', 'Sepeda / Tidak Bermotor', 'Lainnya']
 
 // Baris dari database memakai snake_case dan id asli; gantiOrangDanKendaraan()
 // mengharapkan bentuk formulir (camelCase + idSementara untuk menautkan orang
@@ -456,7 +458,11 @@ function keBentukFormulir(data) {
       tempatLahir: o.tempat_lahir || '', tanggalLahir: o.tanggal_lahir || '', alamat: o.alamat || '',
       peran: o.peran || '', kendaraanIdSementara: o.kendaraan_id || '', kondisi: o.kondisi || 'SELAMAT',
       rsRujukan: o.rs_rujukan || '',
-      kelengkapan: o.kelengkapan || { stnk: false, sim: false, sim_jenis: '', ktp: false, helm_sabuk: false },
+      belumTeridentifikasi: !o.nama,
+      kelengkapan: Object.fromEntries([
+        ...KELENGKAPAN_DEF.map(([k]) => [k, bacaStatusKelengkapan(o.kelengkapan?.[k])]),
+        ['sim_jenis', o.kelengkapan?.sim_jenis || ''],
+      ]),
     })),
   }
 }
@@ -477,7 +483,7 @@ function EditorKendaraanOrang({ kendaraan, setKendaraan, orang, setOrang, idBaru
           <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Kendaraan terlibat</span>
           <button
             type="button"
-            onClick={() => setKendaraan((a) => [...a, { idSementara: idBaru(), kategori: KATEGORI_KENDARAAN[0], merk: '', nopol: '' }])}
+            onClick={() => setKendaraan((a) => [...a, kendaraanBaru(idBaru())])}
             className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold"
           >+ Tambah</button>
         </div>
@@ -486,10 +492,11 @@ function EditorKendaraanOrang({ kendaraan, setKendaraan, orang, setOrang, idBaru
           {kendaraan.map((k) => (
             <div key={k.idSementara} className="flex gap-1.5">
               <select value={k.kategori} onChange={(e) => ubahK(k.idSementara, { kategori: e.target.value })} className={kelas}>
+                <option value="">— Kategori —</option>
                 {KATEGORI_KENDARAAN.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               <input value={k.merk} onChange={(e) => ubahK(k.idSementara, { merk: e.target.value })} placeholder="Merk / tipe" className={kelas} />
-              <input value={k.nopol} onChange={(e) => ubahK(k.idSementara, { nopol: e.target.value })} placeholder="Nopol" className={kelas} />
+              <input value={k.nopol} onChange={(e) => ubahK(k.idSementara, { nopol: e.target.value.toUpperCase() })} placeholder="Nopol" className={kelas} />
               <button
                 type="button"
                 onClick={() => {
@@ -510,11 +517,7 @@ function EditorKendaraanOrang({ kendaraan, setKendaraan, orang, setOrang, idBaru
           <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Orang terlibat</span>
           <button
             type="button"
-            onClick={() => setOrang((a) => [...a, {
-              idSementara: idBaru(), nama: '', jenisKelamin: 'L', pekerjaan: '', tempatLahir: '', tanggalLahir: '',
-              alamat: '', peran: '', kendaraanIdSementara: '', kondisi: 'SELAMAT', rsRujukan: '',
-              kelengkapan: { stnk: false, sim: false, sim_jenis: '', ktp: false, helm_sabuk: false },
-            }])}
+            onClick={() => setOrang((a) => [...a, orangBaru(idBaru())])}
             className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold"
           >+ Tambah</button>
         </div>
@@ -532,9 +535,11 @@ function EditorKendaraanOrang({ kendaraan, setKendaraan, orang, setOrang, idBaru
               </div>
               <div className="mb-1.5 grid grid-cols-2 gap-1.5">
                 <select value={o.jenisKelamin} onChange={(e) => ubahO(o.idSementara, { jenisKelamin: e.target.value })} className={kelas}>
-                  <option value="L">Laki-laki</option><option value="P">Perempuan</option>
+                  <option value="">— Jenis kelamin —</option>
+                  {JENIS_KELAMIN_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
                 <select value={o.kondisi} onChange={(e) => ubahO(o.idSementara, { kondisi: e.target.value })} className={kelas}>
+                  <option value="">— Kondisi —</option>
                   {KONDISI_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
                 <input value={o.pekerjaan} onChange={(e) => ubahO(o.idSementara, { pekerjaan: e.target.value })} placeholder="Pekerjaan" className={kelas} />
@@ -552,26 +557,33 @@ function EditorKendaraanOrang({ kendaraan, setKendaraan, orang, setOrang, idBaru
                   <input value={o.rsRujukan} onChange={(e) => ubahO(o.idSementara, { rsRujukan: e.target.value })} placeholder="RS rujukan" className={kelas} />
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {LABEL_KELENGKAPAN.map(([kunci, label]) => (
-                  <label key={kunci} className="flex items-center gap-1 text-[11.5px]">
-                    <input
-                      type="checkbox"
-                      checked={!!o.kelengkapan?.[kunci]}
-                      onChange={(e) => ubahO(o.idSementara, { kelengkapan: { ...o.kelengkapan, [kunci]: e.target.checked } })}
-                    />
-                    {label}
-                  </label>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                {KELENGKAPAN_DEF.map(([kunci, label]) => (
+                  <div key={kunci}>
+                    <label className="mb-0.5 block text-[10.5px] text-ink-soft">{label}</label>
+                    <select
+                      value={bacaStatusKelengkapan(o.kelengkapan?.[kunci])}
+                      onChange={(e) => ubahO(o.idSementara, { kelengkapan: { ...o.kelengkapan, [kunci]: e.target.value } })}
+                      className={kelas}
+                    >
+                      {STATUS_KELENGKAPAN_OPT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
                 ))}
-                {o.kelengkapan?.sim && (
-                  <input
-                    value={o.kelengkapan.sim_jenis || ''}
-                    onChange={(e) => ubahO(o.idSementara, { kelengkapan: { ...o.kelengkapan, sim_jenis: e.target.value } })}
-                    placeholder="Jenis SIM"
-                    className="w-24 rounded-lg border border-line px-2 py-1 text-[11.5px]"
-                  />
-                )}
               </div>
+              {bacaStatusKelengkapan(o.kelengkapan?.sim) === ADA && (
+                <div className="mt-1.5 w-40">
+                  <label className="mb-0.5 block text-[10.5px] text-ink-soft">Jenis SIM</label>
+                  <select
+                    value={o.kelengkapan?.sim_jenis || ''}
+                    onChange={(e) => ubahO(o.idSementara, { kelengkapan: { ...o.kelengkapan, sim_jenis: e.target.value } })}
+                    className={kelas}
+                  >
+                    <option value="">— Pilih —</option>
+                    {SIM_JENIS_OPT.map((x) => <option key={x}>{x}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -668,12 +680,18 @@ function RincianKejadian({ data }) {
                 {o.rs_rujukan && <div className="mt-0.5 text-[11.5px]">RS rujukan: <b>{o.rs_rujukan}</b></div>}
                 {o.kelengkapan && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    {LABEL_KELENGKAPAN.map(([kunci, label]) => (
-                      <Tag key={kunci} nada={o.kelengkapan[kunci] ? 'baik' : 'buruk'}>
-                        {o.kelengkapan[kunci] ? '✓' : '✕'} {label}
-                        {kunci === 'sim' && o.kelengkapan.sim && o.kelengkapan.sim_jenis ? ` ${o.kelengkapan.sim_jenis}` : ''}
-                      </Tag>
-                    ))}
+                    {KELENGKAPAN_DEF.map(([kunci, label]) => {
+                      const st = bacaStatusKelengkapan(o.kelengkapan[kunci])
+                      const nada = st === ADA ? 'baik' : st === TIDAK_ADA ? 'buruk' : 'ingat'
+                      const tanda = st === ADA ? '✓' : st === TIDAK_ADA ? '✕' : '?'
+                      return (
+                        <Tag key={kunci} nada={nada}>
+                          {tanda} {label}
+                          {kunci === 'sim' && st === ADA && o.kelengkapan.sim_jenis ? ` ${o.kelengkapan.sim_jenis}` : ''}
+                          {st === BELUM_DIPERIKSA ? ' (belum diperiksa)' : ''}
+                        </Tag>
+                      )
+                    })}
                   </div>
                 )}
               </div>
