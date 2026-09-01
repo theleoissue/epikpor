@@ -224,12 +224,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
             </div>
           )}
 
-          {tipe === 'kejadian' && (data.orang?.length > 0 || data.kendaraan?.length > 0) && (
-            <div className="mb-4 rounded-lg border border-line bg-white p-3 text-[12px]">
-              {data.kendaraan?.length > 0 && <div className="mb-2"><b>Kendaraan:</b> {data.kendaraan.map((k) => `${k.kategori} ${k.merk} (${k.nopol || '-'})`).join('; ')}</div>}
-              {data.orang?.length > 0 && <div><b>Orang terlibat:</b> {data.orang.map((o) => `${o.nama || '(tanpa nama)'} — ${o.kondisi?.replaceAll('_', ' ')}`).join('; ')}</div>}
-            </div>
-          )}
+          {tipe === 'kejadian' && <RincianKejadian data={data} />}
 
           {editMode ? (
             <div className="mb-4 space-y-2 rounded-lg border border-brass bg-white p-3">
@@ -381,6 +376,159 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       </div>
       {lightboxAwal !== null && <Lightbox urls={fotoUrls} indexAwal={lightboxAwal} onClose={() => setLightboxAwal(null)} />}
     </>
+  )
+}
+
+// Verifikator harus bisa membaca SELURUH isi laporan sebelum mengesahkannya.
+// Sebelumnya modal ini cuma menampilkan nama + kondisi korban, sementara
+// formulir Kejadian menangkap faktor penyebab, tindakan, RTL, kelengkapan
+// surat, dan identitas lengkap — artinya laporan disahkan tanpa pernah
+// benar-benar terbaca.
+const LABEL_KELENGKAPAN = [['stnk', 'STNK'], ['sim', 'SIM'], ['ktp', 'KTP'], ['helm_sabuk', 'Helm/Sabuk']]
+
+function rapi(v) {
+  return typeof v === 'string' ? v.replaceAll('_', ' ') : v
+}
+
+function Bagian({ judul, children }) {
+  return (
+    <div className="mb-3">
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{judul}</div>
+      {children}
+    </div>
+  )
+}
+
+function Tag({ children, nada = 'netral' }) {
+  const gaya = {
+    netral: 'border-line bg-paper-dim text-ink',
+    baik: 'border-transparent bg-ok-bg text-ok',
+    buruk: 'border-transparent bg-bad-bg text-bad',
+    ingat: 'border-transparent bg-warn-bg text-warn',
+  }[nada]
+  return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gaya}`}>{children}</span>
+}
+
+function DaftarChip({ isi, lainnya }) {
+  const semua = [...(isi || [])]
+  if (lainnya) semua.push(lainnya)
+  if (semua.length === 0) return <span className="text-[12px] italic text-ink-soft">Tidak diisi.</span>
+  return <div className="flex flex-wrap gap-1.5">{semua.map((x, i) => <Tag key={i}>{x}</Tag>)}</div>
+}
+
+function RincianKejadian({ data }) {
+  const nadaKondisi = (k) => (k === 'MENINGGAL_DUNIA' || k === 'LUKA_BERAT' ? 'buruk' : k === 'SELAMAT' ? 'baik' : 'ingat')
+  const kendaraanNama = (id) => {
+    const k = (data.kendaraan || []).find((x) => x.id === id)
+    return k ? `${k.kategori}${k.merk ? ` ${k.merk}` : ''}${k.nopol ? ` (${k.nopol})` : ''}` : null
+  }
+  const rtl = (data.rtl || []).filter(Boolean)
+  const personel = (data.personel_tambahan || []).filter(Boolean)
+  const jalan = data.faktor_jalan?.kondisiPermukaan
+  const cuaca = data.faktor_cuaca?.cuaca
+
+  return (
+    <div className="mb-4 rounded-lg border border-line bg-white p-3.5">
+      <Bagian judul="Status penanganan">
+        <div className="flex flex-wrap gap-1.5">
+          <Tag nada={data.tabrak_lari ? 'buruk' : 'netral'}>{data.tabrak_lari ? 'Tabrak lari' : 'Bukan tabrak lari'}</Tag>
+          <Tag nada={data.tkp_ditangani ? 'baik' : 'ingat'}>{data.tkp_ditangani ? 'TKP ditangani' : 'TKP belum ditangani'}</Tag>
+          <Tag nada={data.kendaraan_diamankan ? 'baik' : 'netral'}>{data.kendaraan_diamankan ? 'Kendaraan diamankan' : 'Kendaraan tidak diamankan'}</Tag>
+          {data.status_tersangka && (
+            <Tag nada={data.status_tersangka === 'SUDAH_DIKETAHUI' ? 'baik' : 'ingat'}>
+              Tersangka: {rapi(data.status_tersangka).toLowerCase()}{data.nama_tersangka ? ` — ${data.nama_tersangka}` : ''}
+            </Tag>
+          )}
+        </div>
+      </Bagian>
+
+      {data.kendaraan?.length > 0 && (
+        <Bagian judul={`Kendaraan terlibat (${data.kendaraan.length})`}>
+          <div className="space-y-1">
+            {data.kendaraan.map((k) => (
+              <div key={k.id} className="flex flex-wrap items-baseline gap-x-2 border-b border-dashed border-paper-dim pb-1 text-[12.5px] last:border-none last:pb-0">
+                <span className="font-semibold">{k.kategori}</span>
+                <span>{k.merk || '—'}</span>
+                <span className="font-mono text-[11.5px] text-ink-soft">{k.nopol || 'tanpa nopol'}</span>
+              </div>
+            ))}
+          </div>
+        </Bagian>
+      )}
+
+      {data.orang?.length > 0 && (
+        <Bagian judul={`Orang terlibat (${data.orang.length})`}>
+          <div className="space-y-2">
+            {data.orang.map((o) => (
+              <div key={o.id} className="rounded-lg border border-line p-2.5 text-[12px]">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] font-semibold">{o.nama || '(tanpa nama)'}</span>
+                  <Tag nada={nadaKondisi(o.kondisi)}>{rapi(o.kondisi)}</Tag>
+                  {o.peran && <span className="text-[11px] text-ink-soft">{o.peran}</span>}
+                </div>
+                <div className="text-[11.5px] text-ink-soft">
+                  {[
+                    o.jenis_kelamin === 'L' ? 'Laki-laki' : o.jenis_kelamin === 'P' ? 'Perempuan' : null,
+                    o.pekerjaan,
+                    [o.tempat_lahir, o.tanggal_lahir].filter(Boolean).join(', '),
+                  ].filter(Boolean).join(' · ') || 'Identitas tidak dilengkapi'}
+                </div>
+                {o.alamat && <div className="mt-0.5 text-[11.5px] text-ink-soft">{o.alamat}</div>}
+                {kendaraanNama(o.kendaraan_id) && <div className="mt-0.5 text-[11.5px]">Mengendarai: {kendaraanNama(o.kendaraan_id)}</div>}
+                {o.rs_rujukan && <div className="mt-0.5 text-[11.5px]">RS rujukan: <b>{o.rs_rujukan}</b></div>}
+                {o.kelengkapan && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {LABEL_KELENGKAPAN.map(([kunci, label]) => (
+                      <Tag key={kunci} nada={o.kelengkapan[kunci] ? 'baik' : 'buruk'}>
+                        {o.kelengkapan[kunci] ? '✓' : '✕'} {label}
+                        {kunci === 'sim' && o.kelengkapan.sim && o.kelengkapan.sim_jenis ? ` ${o.kelengkapan.sim_jenis}` : ''}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Bagian>
+      )}
+
+      <Bagian judul="Faktor penyebab">
+        <div className="space-y-1.5">
+          <div>
+            <div className="mb-1 text-[11px] font-semibold text-ink-soft">A. Manusia</div>
+            <DaftarChip isi={data.faktor_manusia?.checked} lainnya={data.faktor_manusia?.lainnya} />
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold text-ink-soft">B. Kendaraan</div>
+            <DaftarChip isi={data.faktor_kendaraan?.checked} lainnya={data.faktor_kendaraan?.lainnya} />
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold text-ink-soft">C. Jalan &amp; Cuaca</div>
+            {jalan || cuaca
+              ? <div className="flex flex-wrap gap-1.5">{jalan && <Tag>{jalan}</Tag>}{cuaca && <Tag>{cuaca}</Tag>}</div>
+              : <span className="text-[12px] italic text-ink-soft">Tidak diisi.</span>}
+          </div>
+        </div>
+      </Bagian>
+
+      <Bagian judul="Tindakan yang dilakukan">
+        <DaftarChip isi={data.tindakan?.checked} lainnya={data.tindakan?.lainnya} />
+      </Bagian>
+
+      {rtl.length > 0 && (
+        <Bagian judul="Rencana tindak lanjut">
+          <ol className="list-decimal space-y-0.5 pl-4 text-[12.5px]">
+            {rtl.map((x, i) => <li key={i}>{x}</li>)}
+          </ol>
+        </Bagian>
+      )}
+
+      {personel.length > 0 && (
+        <Bagian judul="Personel tambahan di TKP">
+          <div className="flex flex-wrap gap-1.5">{personel.map((x, i) => <Tag key={i}>{x}</Tag>)}</div>
+        </Bagian>
+      )}
+    </div>
   )
 }
 
