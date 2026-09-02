@@ -32,7 +32,6 @@ export default function Roster() {
   const [pratinjau, setPratinjau] = useState(null)
   const [menyusun, setMenyusun] = useState(false)
   const [pola, setPola] = useState(POLA_BAWAAN)
-  const [polaTerbuka, setPolaTerbuka] = useState(false)
   const [menyimpanPola, setMenyimpanPola] = useState(false)
   const bolehUbahPola = profil.peran_sistem === 'ADMIN'
 
@@ -111,6 +110,22 @@ export default function Roster() {
     }
   }
 
+  // Penunjuk cakupan: berapa hari pada bulan yang sedang disusun sudah punya
+  // roster. Tanpa ini, penyusun harus menyusuri minggu satu per satu hanya
+  // untuk tahu apakah bulan itu sudah tergarap atau belum.
+  const [cakupan, setCakupan] = useState(null)
+  useEffect(() => {
+    const akhir = new Date(gen.tahun, gen.bulan, 0).getDate()
+    const p2 = (n) => String(n).padStart(2, '0')
+    ambilRosterPeriode(`${gen.tahun}-${p2(gen.bulan)}-01`, `${gen.tahun}-${p2(gen.bulan)}-${p2(akhir)}`)
+      .then((r) => setCakupan({ terjadwal: new Set(r.map((x) => x.tanggal)).size, total: akhir }))
+      .catch(() => setCakupan(null))
+  }, [gen.tahun, gen.bulan, baris])
+
+  const cakupanBulan = cakupan
+    ? `${NAMA_BULAN[gen.bulan - 1]} ${gen.tahun}: ${cakupan.terjadwal} dari ${cakupan.total} hari terjadwal`
+    : ''
+
   // Peringatan langsung saat menyusun manual: berapa regu yang sudah
   // terjadwal pada tanggal itu, dibandingkan dengan tuntutan mode harinya.
   const peringatanHari = (() => {
@@ -182,17 +197,27 @@ export default function Roster() {
       <div className="mb-5">
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Roster</div>
         <h1 className="mt-1 font-display text-[22px] font-semibold">Roster Piket</h1>
-        <p className="mt-1 max-w-xl text-[13.5px] text-ink-soft">Disusun dan disahkan manusia — sistem tidak menghitung rotasi regu sendiri (Dokumen Teknis Bagian 8).</p>
+        <p className="mt-1 max-w-xl text-[13.5px] text-ink-soft">
+          Susun sebulan sekaligus, lalu sunting harinya kalau ada penyesuaian. Jadwal tetap disahkan manusia —
+          sistem hanya menyalinkan polanya (Dokumen Teknis Bagian 8).
+        </p>
       </div>
 
-      <div className="mb-5 rounded-2xl border border-brass bg-white p-5">
+      {/* Satu tindakan utama di atas, hasilnya di tengah, dua pengaturan
+          lanjutan terlipat di bawah. Sebelumnya penyusun otomatis dan
+          formulir manual tampil sederajat tanpa penjelasan kapan memakai
+          yang mana, dan penyunting pola terselip di dalam penyusun. */}
+      <div className="mb-5 rounded-2xl border-2 border-brass bg-white p-5">
         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-display text-[14.5px] font-semibold">Susun rotasi otomatis</h3>
+          <h3 className="font-display text-[15px] font-semibold">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brass text-[11px] font-bold text-navy-950">1</span>
+            Susun jadwal satu bulan
+          </h3>
           <span className="font-mono text-[10.5px] uppercase tracking-wide text-warn">Skema Siaga Wiken</span>
         </div>
-        <p className="mb-3.5 text-[11.5px] text-ink-soft">
-          Mengikuti RAP Tabel 1.1 &amp; 1.2: hari kerja satu regu bergilir, <b>akhir pekan dua regu</b> sebagai penguatan personel.
-          Hasilnya bisa diperiksa dulu sebelum disimpan, dan tetap bisa disunting satu per satu setelahnya.
+        <p className="mb-3.5 text-[12px] text-ink-soft">
+          Hari kerja satu regu bergilir, <b>akhir pekan dua regu</b> sebagai penguatan personel.
+          Hasilnya ditampilkan dulu untuk diperiksa — belum tersimpan sebelum kamu menekan Simpan.
         </p>
         <div className="mb-3 grid gap-3 sm:grid-cols-4">
           <div>
@@ -216,17 +241,152 @@ export default function Roster() {
             </select>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={susunPratinjau} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white">
-            Susun &amp; Periksa Dulu
-          </button>
-          <button onClick={() => setPolaTerbuka((v) => !v)} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold text-ink-soft">
-            {polaTerbuka ? 'Tutup pengaturan pola' : `Atur pola rotasi (siklus ${pola.jumlahMinggu} minggu)`}
-          </button>
-        </div>
+        <button onClick={susunPratinjau} className="rounded-lg bg-navy-950 px-5 py-2.5 text-[13px] font-semibold text-white">
+          Susun &amp; Periksa Dulu
+        </button>
 
-        {polaTerbuka && (
-          <div className="mt-4 rounded-lg border border-line bg-paper p-3.5">
+        {pratinjau && (
+          <div className="mt-4 border-t border-dashed border-paper-dim pt-3.5">
+            {pratinjau.reguHilang.length > 0 && (
+              <div className="mb-2.5 rounded-lg bg-bad-bg px-3 py-2 text-[12px] text-bad">
+                Regu {pratinjau.reguHilang.join(', ')} disebut dalam pola tetapi tidak ada di data induk — harinya dilewati.
+                Tambahkan dulu lewat Kelola Data → Zona &amp; Regu.
+              </div>
+            )}
+            <div className="mb-2 text-[12px] text-ink-soft">
+              <b className="text-ink">{pratinjau.baris.length} baris</b> akan dibuat untuk {NAMA_BULAN[gen.bulan - 1]} {gen.tahun}
+              {' · '}{pratinjau.baris.filter((b) => b.pengguna_ids.length === 0).length} baris belum ada personelnya
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
+              <table className="w-full text-[11.5px]">
+                <thead className="sticky top-0 bg-paper-dim text-left text-[10.5px] uppercase text-ink-soft">
+                  <tr><th className="px-2.5 py-1.5">Tanggal</th><th className="px-2.5 py-1.5">Hari</th><th className="px-2.5 py-1.5">Mode</th><th className="px-2.5 py-1.5">Regu bertugas</th></tr>
+                </thead>
+                <tbody>
+                  {pratinjau.jadwal.map((h) => (
+                    <tr key={h.tanggal} className={`border-t border-paper-dim ${h.mode_hari === 'AKHIR_PEKAN' ? 'bg-warn-bg/50' : ''}`}>
+                      <td className="px-2.5 py-1.5 font-mono">{h.tanggal}</td>
+                      <td className="px-2.5 py-1.5">{h.hari}</td>
+                      <td className="px-2.5 py-1.5">{ATURAN_MODE_HARI[h.mode_hari].label}</td>
+                      <td className="px-2.5 py-1.5 font-semibold">
+                        Regu {h.reguNomor.join(' + ')}
+                        {h.reguNomor.length > 1 && <span className="ml-1.5 rounded-full bg-warn-bg px-1.5 py-0.5 text-[10px] font-bold text-warn">penguatan</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={simpanPratinjau} disabled={menyusun} className="rounded-lg bg-brass px-4 py-2 text-[12.5px] font-bold text-navy-950 disabled:opacity-50">
+                {menyusun ? 'Menyimpan…' : `Simpan ${pratinjau.baris.length} baris`}
+              </button>
+              <button onClick={() => setPratinjau(null)} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold">Batal</button>
+            </div>
+            <p className="mt-2 text-[11px] text-ink-soft">
+              Tanggal yang sudah punya roster akan ditimpa dengan susunan baru ini.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-line bg-white p-5">
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="font-display text-[15px] font-semibold">
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-navy-900 text-[11px] font-bold text-white">2</span>
+            Jadwal tersusun
+          </h3>
+          <span className="text-[11.5px] text-ink-soft">{cakupanBulan}</span>
+        </div>
+        <p className="mb-3.5 text-[12px] text-ink-soft">Ditampilkan per minggu. Gunakan panah untuk berpindah minggu.</p>
+        <div className="mb-3.5 flex items-center justify-between">
+          <h3 className="font-display text-[14.5px] font-semibold">Minggu {mulaiMinggu.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</h3>
+          <div className="flex gap-2">
+            <button onClick={() => setMulaiMinggu((d) => { const x = new Date(d); x.setDate(x.getDate() - 7); return x })} className="rounded-lg border border-line px-2.5 py-1 text-[12px]">‹</button>
+            <button onClick={() => setMulaiMinggu((d) => { const x = new Date(d); x.setDate(x.getDate() + 7); return x })} className="rounded-lg border border-line px-2.5 py-1 text-[12px]">›</button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-[12px]">
+            <thead><tr className="bg-paper-dim text-left text-[10.5px] uppercase text-ink-soft"><th className="px-2.5 py-2">Tanggal</th><th className="px-2.5 py-2">Mode</th><th className="px-2.5 py-2">Zona</th><th className="px-2.5 py-2">Regu</th><th className="px-2.5 py-2">Personel</th></tr></thead>
+            <tbody>
+              {baris.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-ink-soft">Belum ada roster minggu ini.</td></tr>}
+              {baris.map((b) => (
+                <tr key={b.id} className="border-t border-paper-dim">
+                  <td className="px-2.5 py-2">{b.tanggal}</td>
+                  <td className="px-2.5 py-2">{MODE_HARI.find(([v]) => v === b.mode_hari)?.[1]}</td>
+                  <td className="px-2.5 py-2">{b.zona?.nama}</td>
+                  <td className="px-2.5 py-2">{b.regu?.nomor}</td>
+                  <td className="px-2.5 py-2">{(b.personel || []).map((p) => p.pengguna?.nama).join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <details className="mb-3 rounded-2xl border border-line bg-white">
+        <summary className="cursor-pointer list-none px-5 py-3.5 text-[13.5px] font-semibold">
+          <span className="mr-1.5 text-ink-soft">▸</span> Sunting satu hari
+          <span className="ml-2 text-[11.5px] font-normal text-ink-soft">— penyesuaian di luar pola, mis. cuti atau operasi mendadak</span>
+        </summary>
+        <div className="border-t border-line px-5 pb-5 pt-4">
+        <div className="mb-1.5 grid gap-3 sm:grid-cols-4">
+          {/* Memilih tanggal langsung menyetel mode harinya — Sabtu/Minggu
+              otomatis jadi Akhir Pekan, supaya penguatan personel tidak
+              terlewat hanya karena penyusun lupa mengubah mode. */}
+          <input
+            type="date" value={form.tanggal}
+            onChange={(e) => setForm((f) => ({ ...f, tanggal: e.target.value, mode_hari: e.target.value ? modeHariOtomatis(e.target.value) : f.mode_hari }))}
+            className="rounded-lg border border-line px-3 py-2 text-[12.5px]"
+          />
+          <select value={form.mode_hari} onChange={(e) => setForm((f) => ({ ...f, mode_hari: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
+            {MODE_HARI.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <select value={form.zona_id} onChange={(e) => setForm((f) => ({ ...f, zona_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
+            <option value="">Zona —</option>{zona.map((z) => <option key={z.id} value={z.id}>{z.nama}</option>)}
+          </select>
+          <select value={form.regu_id} onChange={(e) => setForm((f) => ({ ...f, regu_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
+            <option value="">Regu —</option>{regu.map((r) => <option key={r.id} value={r.id}>Regu {r.nomor}</option>)}
+          </select>
+        </div>
+        {/* Tiap mode hari punya tuntutan pengerahannya sendiri menurut RAP
+            Tabel 1.3. Dulu mode hari cuma label tanpa akibat apa pun. */}
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11.5px] text-ink-soft">
+          <span>{ATURAN_MODE_HARI[form.mode_hari]?.catatan}</span>
+          {form.tanggal && <span className="rounded-full bg-paper-dim px-2 py-0.5 font-semibold text-ink">{namaHari(form.tanggal)}</span>}
+        </div>
+        {form.tanggal && peringatanHari && (
+          <div className="mb-3 rounded-lg bg-warn-bg px-3 py-2 text-[12px] text-warn">⚠ {peringatanHari}</div>
+        )}
+
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[11px] font-semibold text-ink-soft">Personel bertugas</label>
+          <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-line p-2">
+            {pengguna.filter((p) => p.peran_sistem === 'BANIT').map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setForm((f) => ({ ...f, pengguna_ids: f.pengguna_ids.includes(p.id) ? f.pengguna_ids.filter((x) => x !== p.id) : [...f.pengguna_ids, p.id] }))}
+                className={`rounded-full border px-2.5 py-1 text-[11px] ${form.pengguna_ids.includes(p.id) ? 'border-navy-900 bg-navy-900 text-white' : 'border-line text-ink-soft'}`}
+              >
+                {p.nama}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={simpan} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white">Simpan Baris</button>
+          <button onClick={salinMinggu} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold">Salin dari Minggu Lalu</button>
+        </div>
+        </div>
+      </details>
+
+      <details className="rounded-2xl border border-line bg-white">
+        <summary className="cursor-pointer list-none px-5 py-3.5 text-[13.5px] font-semibold">
+          <span className="mr-1.5 text-ink-soft">▸</span> Atur pola rotasi
+          <span className="ml-2 text-[11.5px] font-normal text-ink-soft">— siklus {pola.jumlahMinggu} minggu{bolehUbahPola ? '' : ' (hanya dapat dilihat)'}</span>
+        </summary>
+        <div className="border-t border-line px-5 pb-5 pt-4">
             <div className="mb-1 font-display text-[13px] font-semibold">Pola rotasi</div>
             <p className="mb-3 text-[11.5px] text-ink-soft">
               Nilai awalnya mengikuti RAP Tabel 1.1 &amp; 1.2. RAP hanya memuat dua minggu, jadi panjang siklus bisa disetel sendiri:
@@ -302,131 +462,8 @@ export default function Roster() {
             ) : (
               <p className="mt-3 text-[11.5px] italic text-ink-soft">Hanya Administrator yang dapat mengubah pola ini.</p>
             )}
-          </div>
-        )}
-
-        {pratinjau && (
-          <div className="mt-4 border-t border-dashed border-paper-dim pt-3.5">
-            {pratinjau.reguHilang.length > 0 && (
-              <div className="mb-2.5 rounded-lg bg-bad-bg px-3 py-2 text-[12px] text-bad">
-                Regu {pratinjau.reguHilang.join(', ')} disebut dalam pola tetapi tidak ada di data induk — harinya dilewati.
-                Tambahkan dulu lewat Kelola Data → Zona &amp; Regu.
-              </div>
-            )}
-            <div className="mb-2 text-[12px] text-ink-soft">
-              <b className="text-ink">{pratinjau.baris.length} baris</b> akan dibuat untuk {NAMA_BULAN[gen.bulan - 1]} {gen.tahun}
-              {' · '}{pratinjau.baris.filter((b) => b.pengguna_ids.length === 0).length} baris belum ada personelnya
-            </div>
-            <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
-              <table className="w-full text-[11.5px]">
-                <thead className="sticky top-0 bg-paper-dim text-left text-[10.5px] uppercase text-ink-soft">
-                  <tr><th className="px-2.5 py-1.5">Tanggal</th><th className="px-2.5 py-1.5">Hari</th><th className="px-2.5 py-1.5">Mode</th><th className="px-2.5 py-1.5">Regu bertugas</th></tr>
-                </thead>
-                <tbody>
-                  {pratinjau.jadwal.map((h) => (
-                    <tr key={h.tanggal} className={`border-t border-paper-dim ${h.mode_hari === 'AKHIR_PEKAN' ? 'bg-warn-bg/50' : ''}`}>
-                      <td className="px-2.5 py-1.5 font-mono">{h.tanggal}</td>
-                      <td className="px-2.5 py-1.5">{h.hari}</td>
-                      <td className="px-2.5 py-1.5">{ATURAN_MODE_HARI[h.mode_hari].label}</td>
-                      <td className="px-2.5 py-1.5 font-semibold">
-                        Regu {h.reguNomor.join(' + ')}
-                        {h.reguNomor.length > 1 && <span className="ml-1.5 rounded-full bg-warn-bg px-1.5 py-0.5 text-[10px] font-bold text-warn">penguatan</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={simpanPratinjau} disabled={menyusun} className="rounded-lg bg-brass px-4 py-2 text-[12.5px] font-bold text-navy-950 disabled:opacity-50">
-                {menyusun ? 'Menyimpan…' : `Simpan ${pratinjau.baris.length} baris`}
-              </button>
-              <button onClick={() => setPratinjau(null)} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold">Batal</button>
-            </div>
-            <p className="mt-2 text-[11px] text-ink-soft">
-              Tanggal yang sudah punya roster akan ditimpa dengan susunan baru ini.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="mb-5 rounded-2xl border border-line bg-white p-5">
-        <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Tambah / ubah baris roster</h3>
-        <div className="mb-1.5 grid gap-3 sm:grid-cols-4">
-          {/* Memilih tanggal langsung menyetel mode harinya — Sabtu/Minggu
-              otomatis jadi Akhir Pekan, supaya penguatan personel tidak
-              terlewat hanya karena penyusun lupa mengubah mode. */}
-          <input
-            type="date" value={form.tanggal}
-            onChange={(e) => setForm((f) => ({ ...f, tanggal: e.target.value, mode_hari: e.target.value ? modeHariOtomatis(e.target.value) : f.mode_hari }))}
-            className="rounded-lg border border-line px-3 py-2 text-[12.5px]"
-          />
-          <select value={form.mode_hari} onChange={(e) => setForm((f) => ({ ...f, mode_hari: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
-            {MODE_HARI.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-          <select value={form.zona_id} onChange={(e) => setForm((f) => ({ ...f, zona_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
-            <option value="">Zona —</option>{zona.map((z) => <option key={z.id} value={z.id}>{z.nama}</option>)}
-          </select>
-          <select value={form.regu_id} onChange={(e) => setForm((f) => ({ ...f, regu_id: e.target.value }))} className="rounded-lg border border-line px-3 py-2 text-[12.5px]">
-            <option value="">Regu —</option>{regu.map((r) => <option key={r.id} value={r.id}>Regu {r.nomor}</option>)}
-          </select>
         </div>
-        {/* Tiap mode hari punya tuntutan pengerahannya sendiri menurut RAP
-            Tabel 1.3. Dulu mode hari cuma label tanpa akibat apa pun. */}
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11.5px] text-ink-soft">
-          <span>{ATURAN_MODE_HARI[form.mode_hari]?.catatan}</span>
-          {form.tanggal && <span className="rounded-full bg-paper-dim px-2 py-0.5 font-semibold text-ink">{namaHari(form.tanggal)}</span>}
-        </div>
-        {form.tanggal && peringatanHari && (
-          <div className="mb-3 rounded-lg bg-warn-bg px-3 py-2 text-[12px] text-warn">⚠ {peringatanHari}</div>
-        )}
-
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[11px] font-semibold text-ink-soft">Personel bertugas</label>
-          <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-line p-2">
-            {pengguna.filter((p) => p.peran_sistem === 'BANIT').map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setForm((f) => ({ ...f, pengguna_ids: f.pengguna_ids.includes(p.id) ? f.pengguna_ids.filter((x) => x !== p.id) : [...f.pengguna_ids, p.id] }))}
-                className={`rounded-full border px-2.5 py-1 text-[11px] ${form.pengguna_ids.includes(p.id) ? 'border-navy-900 bg-navy-900 text-white' : 'border-line text-ink-soft'}`}
-              >
-                {p.nama}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={simpan} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white">Simpan Baris</button>
-          <button onClick={salinMinggu} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold">Salin dari Minggu Lalu</button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-line bg-white p-5">
-        <div className="mb-3.5 flex items-center justify-between">
-          <h3 className="font-display text-[14.5px] font-semibold">Minggu {mulaiMinggu.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</h3>
-          <div className="flex gap-2">
-            <button onClick={() => setMulaiMinggu((d) => { const x = new Date(d); x.setDate(x.getDate() - 7); return x })} className="rounded-lg border border-line px-2.5 py-1 text-[12px]">‹</button>
-            <button onClick={() => setMulaiMinggu((d) => { const x = new Date(d); x.setDate(x.getDate() + 7); return x })} className="rounded-lg border border-line px-2.5 py-1 text-[12px]">›</button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[12px]">
-            <thead><tr className="bg-paper-dim text-left text-[10.5px] uppercase text-ink-soft"><th className="px-2.5 py-2">Tanggal</th><th className="px-2.5 py-2">Mode</th><th className="px-2.5 py-2">Zona</th><th className="px-2.5 py-2">Regu</th><th className="px-2.5 py-2">Personel</th></tr></thead>
-            <tbody>
-              {baris.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-ink-soft">Belum ada roster minggu ini.</td></tr>}
-              {baris.map((b) => (
-                <tr key={b.id} className="border-t border-paper-dim">
-                  <td className="px-2.5 py-2">{b.tanggal}</td>
-                  <td className="px-2.5 py-2">{MODE_HARI.find(([v]) => v === b.mode_hari)?.[1]}</td>
-                  <td className="px-2.5 py-2">{b.zona?.nama}</td>
-                  <td className="px-2.5 py-2">{b.regu?.nomor}</td>
-                  <td className="px-2.5 py-2">{(b.personel || []).map((p) => p.pengguna?.nama).join(', ')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </details>
     </div>
   )
 }
