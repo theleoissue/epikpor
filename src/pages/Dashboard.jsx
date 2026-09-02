@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { ambilZona, ambilTitikRawan, ambilRekapHistoris } from '../lib/referensiApi'
 import { ambilJadwalHariIni } from '../lib/rosterApi'
 import { rekapBulanan } from '../lib/laporanKejadianApi'
-import { SASARAN_WAKTU_TANGGAP, bulanJakarta } from '../lib/format'
+import { SASARAN_WAKTU_TANGGAP, bulanJakarta, akhirPekanJakarta } from '../lib/format'
 
 const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [rekap, setRekap] = useState([])
   const [titikRawan, setTitikRawan] = useState([])
+  const [pekan, setPekan] = useState(null)
 
   useEffect(() => {
     async function muat() {
@@ -75,6 +76,13 @@ export default function Dashboard() {
       })
       setRekap(perBulan)
       setTitikRawan(rawan)
+
+      // Pemisahan hari kerja vs akhir pekan — tolok ukur utama aksi perubahan
+      // Siaga Wiken (RAP Tabel 1.6: 62,5% laka terjadi di akhir pekan). Dihitung
+      // dari waktu kejadian, bukan waktu laporan dikirim, supaya kejadian Minggu
+      // malam yang baru dilaporkan Senin tetap terhitung sebagai akhir pekan.
+      const akhirPekan = dataKejadian.filter((r) => akhirPekanJakarta(r.waktu_diterima || r.created_at)).length
+      setPekan({ akhirPekan, hariKerja: dataKejadian.length - akhirPekan, total: dataKejadian.length })
     }
     muat()
   }, [])
@@ -121,6 +129,8 @@ export default function Dashboard() {
         </div>
       )}
 
+      {pekan && <PanelSiagaWiken pekan={pekan} />}
+
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-line bg-white p-5">
           <h3 className="mb-1 font-display text-[14.5px] font-semibold">Rekapitulasi bulanan {new Date().getFullYear()}</h3>
@@ -159,6 +169,67 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Angka pembanding dari RAP (Tabel 1.6, Januari–Maret 2026, sebelum Siaga
+// Wiken berjalan). Ditampilkan berdampingan supaya capaian aksi perubahan
+// terbaca langsung, bukan perlu dihitung ulang saat evaluasi.
+const DASAR_RAP = { akhirPekan: 25, hariKerja: 15, total: 40, persen: 62.5 }
+
+function PanelSiagaWiken({ pekan }) {
+  const persen = (n) => (pekan.total ? Math.round((n / pekan.total) * 1000) / 10 : 0)
+  const persenAkhirPekan = persen(pekan.akhirPekan)
+  const selisih = pekan.total ? Math.round((persenAkhirPekan - DASAR_RAP.persen) * 10) / 10 : null
+
+  const baris = [
+    ['Hari kerja', 'Senin–Jumat', pekan.hariKerja, persen(pekan.hariKerja), 'bg-navy-800'],
+    ['Akhir pekan', 'Sabtu–Minggu', pekan.akhirPekan, persenAkhirPekan, 'bg-brass'],
+  ]
+
+  return (
+    <div className="mb-5 rounded-2xl border border-line bg-white p-5">
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-display text-[14.5px] font-semibold">Kejadian: hari kerja vs akhir pekan</h3>
+        <span className="font-mono text-[10.5px] uppercase tracking-wide text-warn">Tolok ukur Siaga Wiken</span>
+      </div>
+      <p className="mb-4 text-[11px] text-ink-soft">
+        Dihitung dari waktu kejadian, bukan waktu laporan dikirim. Hanya mencakup kejadian yang masuk lewat aplikasi ini.
+      </p>
+
+      {pekan.total === 0 ? (
+        <div className="rounded-lg border border-dashed border-line p-6 text-center text-[12.5px] text-ink-soft">
+          Belum ada kejadian tercatat tahun ini. Angka akan muncul begitu laporan pertama masuk.
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {baris.map(([judul, hari, jumlah, pct, warna]) => (
+              <div key={judul}>
+                <div className="mb-1 flex items-baseline justify-between text-[12.5px]">
+                  <span><b>{judul}</b> <span className="text-ink-soft">{hari}</span></span>
+                  <span className="font-mono font-semibold tabular-nums">{jumlah} kejadian · {pct}%</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-paper-dim">
+                  <div className={`h-full rounded-full ${warna}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-dashed border-paper-dim pt-3 text-[11.5px]">
+            <span className="text-ink-soft">
+              Sebelum Siaga Wiken (RAP, Jan–Mar 2026): akhir pekan <b className="text-ink">{DASAR_RAP.persen}%</b> dari {DASAR_RAP.total} kejadian
+            </span>
+            {selisih !== null && (
+              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${selisih > 0 ? 'bg-bad-bg text-bad' : selisih < 0 ? 'bg-ok-bg text-ok' : 'bg-paper-dim text-ink-soft'}`}>
+                {selisih > 0 ? `▲ ${selisih}` : selisih < 0 ? `▼ ${Math.abs(selisih)}` : 'setara'} poin
+              </span>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

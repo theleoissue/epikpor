@@ -60,6 +60,14 @@ export function gabungTanggalJam(tanggal, jam) {
   return isNaN(hasil.getTime()) ? null : hasil.toISOString()
 }
 
+// Akhir pekan menurut kalender Asia/Jakarta — bukan zona waktu peramban.
+// Kejadian pukul 23.30 Minggu WIB akan terbaca sebagai Senin bila memakai
+// waktu UTC, dan angka capaian Siaga Wiken ikut meleset.
+export function akhirPekanJakarta(iso) {
+  const hari = new Intl.DateTimeFormat('en-US', { timeZone: ZONA_WAKTU, weekday: 'short' }).format(new Date(iso))
+  return hari === 'Sat' || hari === 'Sun'
+}
+
 export function fmtRupiah(n) {
   if (!n) return '-'
   return 'Rp ' + Number(n).toLocaleString('id-ID')
