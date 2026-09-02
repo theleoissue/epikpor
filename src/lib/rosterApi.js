@@ -42,6 +42,46 @@ export async function simpanBarisRoster({ tanggal, mode_hari, zona_id, regu_id, 
   return baris
 }
 
+// Menyusun sebulan penuh lewat simpanBarisRoster() satu per satu berarti
+// ratusan permintaan berurutan (±120 baris x 3 kueri). Versi massal ini
+// menyelesaikannya dengan tiga kueri saja.
+export async function simpanRosterMassal(baris, disusun_oleh) {
+  if (!baris.length) return 0
+
+  const { data: tersimpan, error } = await supabase
+    .from('roster_piket')
+    .upsert(
+      baris.map(({ tanggal, mode_hari, zona_id, regu_id }) => ({ tanggal, mode_hari, zona_id, regu_id, disusun_oleh })),
+      { onConflict: 'tanggal,zona_id,regu_id' },
+    )
+    .select()
+  if (error) throw error
+  if (!tersimpan?.length) throw new Error('Anda tidak berhak menyusun roster.')
+
+  // Personel lama dibuang lebih dulu supaya penyusunan ulang tidak menumpuk
+  // nama yang sudah tidak dijadwalkan lagi.
+  const idBaris = tersimpan.map((b) => b.id)
+  const { error: errHapus } = await supabase.from('roster_personel').delete().in('roster_piket_id', idBaris)
+  if (errHapus) throw errHapus
+
+  const kunci = (b) => `${b.tanggal}|${b.zona_id}|${b.regu_id}`
+  const petaId = Object.fromEntries(tersimpan.map((b) => [kunci(b), b.id]))
+  const isi = baris.flatMap((b) =>
+    (b.pengguna_ids || []).map((pengguna_id) => ({ roster_piket_id: petaId[kunci(b)], pengguna_id })),
+  ).filter((r) => r.roster_piket_id)
+
+  if (isi.length) {
+    const { error: errIsi } = await supabase.from('roster_personel').insert(isi)
+    if (errIsi) throw errIsi
+  }
+  return tersimpan.length
+}
+
+export async function hapusRosterPeriode(dariTanggal, keTanggal) {
+  const { error } = await supabase.from('roster_piket').delete().gte('tanggal', dariTanggal).lte('tanggal', keTanggal)
+  if (error) throw error
+}
+
 export async function salinRosterMingguSebelumnya(tanggalMulaiBaru, disusun_oleh) {
   const asal = new Date(tanggalMulaiBaru)
   asal.setDate(asal.getDate() - 7)
