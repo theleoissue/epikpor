@@ -4,9 +4,12 @@ import { useToast } from '../components/Toast'
 import { ambilZona, ambilRegu, ambilPengguna } from '../lib/referensiApi'
 import { ambilRosterPeriode, simpanBarisRoster, salinRosterMingguSebelumnya, simpanRosterMassal } from '../lib/rosterApi'
 import {
-  DAFTAR_MODE_HARI as MODE_HARI, ATURAN_MODE_HARI,
+  DAFTAR_MODE_HARI as MODE_HARI, ATURAN_MODE_HARI, POLA_BAWAAN, polaSah, bacaHari,
   susunJadwalBulan, modeHariOtomatis, periksaKecukupanRegu, namaHari,
 } from '../lib/siagaWiken'
+import { ambilPengaturan, simpanPengaturan, KUNCI_POLA_ROTASI } from '../lib/pengaturanApi'
+
+const HARI_PEKAN = [[1, 'Senin'], [2, 'Selasa'], [3, 'Rabu'], [4, 'Kamis'], [5, 'Jumat'], [6, 'Sabtu'], [7, 'Minggu']]
 
 const NAMA_BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 
@@ -28,8 +31,62 @@ export default function Roster() {
   const [gen, setGen] = useState({ tahun: kini.getFullYear(), bulan: kini.getMonth() + 1, mingguAwal: 1 })
   const [pratinjau, setPratinjau] = useState(null)
   const [menyusun, setMenyusun] = useState(false)
+  const [pola, setPola] = useState(POLA_BAWAAN)
+  const [polaTerbuka, setPolaTerbuka] = useState(false)
+  const [menyimpanPola, setMenyimpanPola] = useState(false)
+  const bolehUbahPola = profil.peran_sistem === 'ADMIN'
 
-  useEffect(() => { ambilZona().then(setZona); ambilRegu().then(setRegu); ambilPengguna().then(setPengguna) }, [])
+  useEffect(() => {
+    ambilZona().then(setZona); ambilRegu().then(setRegu); ambilPengguna().then(setPengguna)
+    // Pola bawaan tetap dipakai bila pengaturan belum pernah disimpan atau
+    // isinya rusak — penyusunan roster tidak boleh macet karenanya.
+    ambilPengaturan(KUNCI_POLA_ROTASI)
+      .then((p) => { if (polaSah(p)) setPola(p) })
+      .catch(() => {})
+  }, [])
+
+  function ubahJumlahMinggu(n) {
+    setPratinjau(null)
+    setPola((lama) => {
+      const minggu = {}
+      for (let m = 1; m <= n; m++) {
+        // Minggu baru menyalin minggu terakhir yang ada, supaya penyusun tidak
+        // mulai dari kotak kosong sama sekali.
+        minggu[m] = bacaHariSemua(lama, m) || bacaHariSemua(lama, ((m - 2) % (lama.jumlahMinggu || 1)) + 1) || {}
+      }
+      return { jumlahMinggu: n, minggu }
+    })
+  }
+
+  function bacaHariSemua(p, m) {
+    const mg = p.minggu?.[m] ?? p.minggu?.[String(m)]
+    return mg ? { ...mg } : null
+  }
+
+  function toggleRegu(minggu, hari, nomor) {
+    setPratinjau(null)
+    setPola((lama) => {
+      const kini = bacaHari(lama, minggu, hari)
+      const baru = kini.includes(nomor) ? kini.filter((x) => x !== nomor) : [...kini, nomor].sort((a, b) => a - b)
+      return {
+        ...lama,
+        minggu: { ...lama.minggu, [minggu]: { ...bacaHariSemua(lama, minggu), [hari]: baru } },
+      }
+    })
+  }
+
+  async function simpanPola() {
+    if (!polaSah(pola)) return toast('Pola belum lengkap — tiap hari pada tiap minggu harus terisi', true)
+    setMenyimpanPola(true)
+    try {
+      await simpanPengaturan(KUNCI_POLA_ROTASI, pola, profil.id)
+      toast('Pola rotasi tersimpan dan berlaku untuk semua penyusun')
+    } catch (e) {
+      toast(e.message || 'Gagal menyimpan pola rotasi', true)
+    } finally {
+      setMenyimpanPola(false)
+    }
+  }
 
   async function muatMinggu() {
     try {
@@ -75,7 +132,7 @@ export default function Roster() {
 
   function susunPratinjau() {
     if (!zona.length || !regu.length) return toast('Data zona atau regu belum tersedia', true)
-    const jadwal = susunJadwalBulan(gen.tahun, gen.bulan, gen.mingguAwal)
+    const jadwal = susunJadwalBulan(gen.tahun, gen.bulan, gen.mingguAwal, pola)
     const barisBaru = []
     for (const hari of jadwal) {
       for (const nomor of hari.reguNomor) {
@@ -149,16 +206,104 @@ export default function Roster() {
             <input type="number" value={gen.tahun} onChange={(e) => { setGen((g) => ({ ...g, tahun: Number(e.target.value) })); setPratinjau(null) }} className="w-full rounded-lg border border-line px-3 py-2 text-[12.5px]" />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Minggu pertama memakai pola</label>
+            <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Minggu pertama memakai pola ke-</label>
             <select value={gen.mingguAwal} onChange={(e) => { setGen((g) => ({ ...g, mingguAwal: Number(e.target.value) })); setPratinjau(null) }} className="w-full rounded-lg border border-line px-3 py-2 text-[12.5px]">
-              <option value={1}>Pola Minggu ke-1 (Senin mulai Regu 1)</option>
-              <option value={2}>Pola Minggu ke-2 (Senin mulai Regu 3)</option>
+              {Array.from({ length: pola.jumlahMinggu }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  Minggu ke-{i + 1} — Senin: Regu {bacaHari(pola, i + 1, 1).join(' + ') || '—'}
+                </option>
+              ))}
             </select>
           </div>
         </div>
-        <button onClick={susunPratinjau} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white">
-          Susun &amp; Periksa Dulu
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={susunPratinjau} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white">
+            Susun &amp; Periksa Dulu
+          </button>
+          <button onClick={() => setPolaTerbuka((v) => !v)} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold text-ink-soft">
+            {polaTerbuka ? 'Tutup pengaturan pola' : `Atur pola rotasi (siklus ${pola.jumlahMinggu} minggu)`}
+          </button>
+        </div>
+
+        {polaTerbuka && (
+          <div className="mt-4 rounded-lg border border-line bg-paper p-3.5">
+            <div className="mb-1 font-display text-[13px] font-semibold">Pola rotasi</div>
+            <p className="mb-3 text-[11.5px] text-ink-soft">
+              Nilai awalnya mengikuti RAP Tabel 1.1 &amp; 1.2. RAP hanya memuat dua minggu, jadi panjang siklus bisa disetel sendiri:
+              <b> siklus 3 minggu</b> membuat giliran hari kerja bersambung tanpa putus, sedangkan <b>siklus 2 minggu</b> mengulang
+              persis tabel RAP — dengan akibat ada regu yang mendapat giliran dua hari berturut-turut di batas siklus.
+            </p>
+
+            <div className="mb-3 flex items-center gap-2">
+              <label className="text-[11.5px] font-semibold text-ink-soft">Panjang siklus</label>
+              <select
+                value={pola.jumlahMinggu} disabled={!bolehUbahPola}
+                onChange={(e) => ubahJumlahMinggu(Number(e.target.value))}
+                className="rounded-lg border border-line px-2.5 py-1.5 text-[12px] disabled:opacity-60"
+              >
+                {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} minggu</option>)}
+              </select>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-[11.5px]">
+                <thead>
+                  <tr className="text-left text-[10.5px] uppercase text-ink-soft">
+                    <th className="py-1.5 pr-2">Hari</th>
+                    {Array.from({ length: pola.jumlahMinggu }, (_, i) => <th key={i} className="px-2 py-1.5">Minggu ke-{i + 1}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {HARI_PEKAN.map(([nomorHari, namaH]) => (
+                    <tr key={nomorHari} className={`border-t border-paper-dim ${nomorHari >= 6 ? 'bg-warn-bg/40' : ''}`}>
+                      <td className="py-1.5 pr-2 font-semibold">
+                        {namaH}
+                        {nomorHari >= 6 && <div className="text-[9.5px] font-normal text-warn">penguatan</div>}
+                      </td>
+                      {Array.from({ length: pola.jumlahMinggu }, (_, i) => {
+                        const m = i + 1
+                        const terpilih = bacaHari(pola, m, nomorHari)
+                        return (
+                          <td key={m} className="px-2 py-1.5">
+                            <div className="flex flex-wrap gap-1">
+                              {regu.map((r) => {
+                                const n = Number(r.nomor)
+                                const aktif = terpilih.includes(n)
+                                return (
+                                  <button
+                                    key={r.id} type="button" disabled={!bolehUbahPola}
+                                    onClick={() => toggleRegu(m, nomorHari, n)}
+                                    className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold disabled:opacity-60 ${aktif ? 'border-navy-900 bg-navy-900 text-white' : 'border-line bg-white text-ink-soft'}`}
+                                  >
+                                    {r.nomor}
+                                  </button>
+                                )
+                              })}
+                              {terpilih.length === 0 && <span className="text-[10.5px] italic text-bad">kosong</span>}
+                            </div>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {bolehUbahPola ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={simpanPola} disabled={menyimpanPola} className="rounded-lg bg-navy-950 px-3.5 py-2 text-[12px] font-semibold text-white disabled:opacity-50">
+                  {menyimpanPola ? 'Menyimpan…' : 'Simpan pola'}
+                </button>
+                <button onClick={() => { setPola(POLA_BAWAAN); setPratinjau(null) }} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">
+                  Kembalikan ke pola RAP
+                </button>
+              </div>
+            ) : (
+              <p className="mt-3 text-[11.5px] italic text-ink-soft">Hanya Administrator yang dapat mengubah pola ini.</p>
+            )}
+          </div>
+        )}
 
         {pratinjau && (
           <div className="mt-4 border-t border-dashed border-paper-dim pt-3.5">

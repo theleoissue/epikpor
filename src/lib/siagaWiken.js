@@ -57,6 +57,34 @@ export const POLA_MINGGU = {
   2: { 1: [3], 2: [1], 3: [2], 4: [3], 5: [1], 6: [2, 3], 7: [1, 3] },
 }
 
+// Pola bawaan bila pengaturan belum pernah disimpan. Unit Gakkum menyatakan
+// belum punya aturan baku untuk minggu ke-3 dan seterusnya, jadi panjang
+// siklus pun bisa disetel — bukan dipaksa dua minggu seperti tabel RAP.
+// Siklus 3 minggu membuat putaran hari kerja 1-2-3 bersambung tanpa terputus
+// (15 hari kerja = 5 putaran penuh); siklus 2 minggu mengulang persis tabel RAP.
+export const POLA_BAWAAN = { jumlahMinggu: 2, minggu: POLA_MINGGU }
+
+export function polaSah(pola) {
+  if (!pola || typeof pola !== 'object') return false
+  const n = pola.jumlahMinggu
+  if (!Number.isInteger(n) || n < 1 || n > 4) return false
+  for (let m = 1; m <= n; m++) {
+    const mg = pola.minggu?.[m] ?? pola.minggu?.[String(m)]
+    if (!mg) return false
+    for (let h = 1; h <= 7; h++) {
+      if (!Array.isArray(mg[h] ?? mg[String(h)])) return false
+    }
+  }
+  return true
+}
+
+// Kunci jsonb dari Postgres selalu berupa teks; disamakan supaya pemanggil
+// tidak perlu peduli apakah polanya dari basis data atau dari kode.
+export function bacaHari(pola, minggu, hari) {
+  const mg = pola.minggu?.[minggu] ?? pola.minggu?.[String(minggu)] ?? {}
+  return mg[hari] ?? mg[String(hari)] ?? []
+}
+
 const HARI_ISO = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 export const namaHari = (tanggalIso) => HARI_ISO[hariIso(tanggalIso) - 1]
 
@@ -81,30 +109,33 @@ export function modeHariOtomatis(tanggalIso) {
 }
 
 /**
- * Susun jadwal satu bulan mengikuti pola RAP.
+ * Susun jadwal satu bulan mengikuti pola yang berlaku.
  * @param tahun, bulan (1-12)
- * @param mingguAwal 1 atau 2 — pola mana yang dipakai untuk minggu pertama
+ * @param mingguAwal pola minggu ke berapa yang dipakai untuk minggu pertama
  *        bulan itu, supaya rotasi bisa disambung dari bulan sebelumnya.
+ * @param pola pola rotasi ({ jumlahMinggu, minggu }); bawaan = pola RAP.
  * @returns [{ tanggal, hari, mode_hari, reguNomor: [1,2] }]
  */
-export function susunJadwalBulan(tahun, bulan, mingguAwal = 1) {
+export function susunJadwalBulan(tahun, bulan, mingguAwal = 1, pola = POLA_BAWAAN) {
   const jumlahHari = new Date(tahun, bulan, 0).getDate()
   const tanggal1 = new Date(tahun, bulan - 1, 1)
   // Senin pada minggu yang memuat tanggal 1 — jadi acuan penomoran minggu.
   const seninPertama = new Date(tanggal1)
   seninPertama.setDate(tanggal1.getDate() - ((tanggal1.getDay() + 6) % 7))
 
+  const n = pola.jumlahMinggu || 1
   const hasil = []
   for (let h = 1; h <= jumlahHari; h++) {
     const d = new Date(tahun, bulan - 1, h)
     const iso = keIso(d)
     const indeksMinggu = Math.floor((d - seninPertama) / 604800000)
-    const pola = POLA_MINGGU[((mingguAwal - 1 + indeksMinggu) % 2) + 1]
+    const nomorMinggu = ((mingguAwal - 1 + indeksMinggu) % n) + 1
     hasil.push({
       tanggal: iso,
       hari: namaHari(iso),
       mode_hari: modeHariOtomatis(iso),
-      reguNomor: pola[hariIso(iso)],
+      reguNomor: bacaHari(pola, nomorMinggu, hariIso(iso)),
+      nomorMinggu,
     })
   }
   return hasil
