@@ -193,12 +193,6 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   }
 
   async function salinWA() {
-    // Tab kosong dibuka SEKARANG, sebelum await apa pun — begitu ada jeda
-    // async (mis. menunggu ambilKasatLantas ke server), sebagian besar
-    // peramban sudah menganggap "gestur pengguna"-nya kedaluwarsa dan
-    // memblokir window.open sebagai popup. Membuka lebih dulu lalu mengarahkan
-    // tab yang sama belakangan menghindari itu.
-    const tab = window.open('', '_blank')
     try {
       // Nama pejabat penanda tangan diambil saat tombol ditekan, bukan
       // disimpan di kode — lihat catatan di ambilKasatLantas().
@@ -208,12 +202,24 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       // teks yang bisa disisipkan lewat tautan, dan sebagian WebView di HP
       // jauh lebih ketat lagi, jadi laporan yang panjang bisa terpotong.
       await navigator.clipboard.writeText(teks).catch(() => {})
-      const tautan = `https://wa.me/?text=${encodeURIComponent(teks)}`
-      if (tab) tab.location.href = tautan
-      else window.open(tautan, '_blank')
+
+      // window.open() dipakai dulu, tapi itu sering diam-diam tidak melakukan
+      // apa pun (bukan error, cuma gagal tanpa pesan) ketika aplikasi dibuka
+      // sebagai PWA terpasang di layar utama — terutama di iPhone, yang
+      // memblokir window baru sama sekali dalam mode standalone. Elemen <a>
+      // sungguhan yang diklik terprogram diperlakukan peramban sebagai
+      // navigasi tautan biasa, bukan popup skrip, sehingga tetap diteruskan
+      // ke aplikasi WhatsApp/Safari meski dari dalam PWA.
+      const a = document.createElement('a')
+      a.href = `https://wa.me/?text=${encodeURIComponent(teks)}`
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+
       toast(kasat ? 'WhatsApp dibuka, teks juga disalin sebagai cadangan' : 'WhatsApp dibuka — belum ada akun Kasat Lantas untuk tanda tangan')
     } catch {
-      tab?.close()
       toast('Gagal membuka WhatsApp', true)
     }
   }
