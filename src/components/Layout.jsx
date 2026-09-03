@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import NotifBell from './NotifBell'
+import StatusAntrean from './StatusAntrean'
 import { menuUntukPeran, LABEL_PERAN } from '../lib/menu'
 import { keluar, sedangImpersonasi, kembaliDariImpersonasi } from '../lib/auth'
 import { useToast } from './Toast'
@@ -39,6 +40,7 @@ export default function Layout({ profil }) {
   const inisial = profil.nama.split(' ').slice(-1)[0].slice(0, 2).toUpperCase()
   const jumlahMenunggu = useJumlahMenungguVerifikasi(profil.peran_sistem)
   const impersonasi = sedangImpersonasi()
+  const lokasiKini = useLocation()
 
   async function kembaliKeAdmin() {
     try { await kembaliDariImpersonasi() }
@@ -53,6 +55,7 @@ export default function Layout({ profil }) {
           <button onClick={kembaliKeAdmin} className="rounded-lg bg-navy-950 px-3 py-1.5 text-[11.5px] font-semibold text-white hover:bg-navy-800">← Kembali ke akun Admin</button>
         </div>
       )}
+      <StatusAntrean pemicuMuatUlang={lokasiKini.pathname} />
       <div className="grid flex-1 grid-rows-[60px_1fr] md:grid-cols-[220px_1fr] md:grid-rows-[60px_1fr]">
       <div className="flex items-center justify-between border-b-[3px] border-brass bg-navy-950 px-4 text-white md:col-span-2">
         <div className="flex items-center gap-2.5">

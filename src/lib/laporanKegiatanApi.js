@@ -94,3 +94,18 @@ export async function ambilLaporanKegiatanSaya(pelapor_id) {
   if (error) throw error
   return data
 }
+
+// Membatalkan pengesahan supaya laporan bisa diperbaiki. Bukan menyunting
+// dokumen yang sudah disahkan diam-diam: statusnya kembali ke Menunggu
+// Verifikasi, pelapor memperbaiki lewat jalur biasa, lalu diverifikasi ulang.
+// Pembatalannya dicatat trigger ke log_aktivitas.
+export async function bukaKembaliLaporanKegiatan(id) {
+  const { data, error } = await supabase
+    .from('laporan_kegiatan')
+    .update({ status: 'MENUNGGU_VERIFIKASI' })
+    .eq('id', id)
+    .select()
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Laporan tidak ditemukan atau Anda tidak berhak membukanya kembali.')
+}

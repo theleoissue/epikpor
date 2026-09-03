@@ -26,6 +26,9 @@ const BISA_BUKA_SESI = ['BANIT']
 function AntreanLuring() {
   const toast = useToast()
   useEffect(() => {
+    // Memberi tahu pita StatusAntrean supaya angkanya langsung menyesuaikan
+    // begitu antrean selesai diproses, tanpa menunggu pemeriksaan berkala.
+    const selesai = () => window.dispatchEvent(new Event('antrean-berubah'))
     return pasangPendengarOnline(async (item) => {
       if (item.tipe === 'kegiatan') {
         const laporan = await kirimLaporanKegiatan(item.payload)
@@ -42,7 +45,7 @@ function AntreanLuring() {
         }
         toast('Laporan kejadian yang tertunda berhasil terkirim')
       }
-    })
+    }, selesai)
   }, [])
   return null
 }

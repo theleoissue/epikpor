@@ -4,8 +4,8 @@ import { useToast } from '../components/Toast'
 import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
 import { fmtTime, fmtDate, fmtRupiah, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
-import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan } from '../lib/laporanKegiatanApi'
-import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, ambilLogKejadian } from '../lib/laporanKejadianApi'
+import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan, bukaKembaliLaporanKegiatan } from '../lib/laporanKegiatanApi'
+import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, bukaKembaliLaporanKejadian, ambilLogKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
 import { ambilKasatLantas } from '../lib/referensiApi'
@@ -151,6 +151,23 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
     }
   }
 
+  // Verifikator membatalkan pengesahannya sendiri supaya laporan yang keliru
+  // bisa diperbaiki pelapor, lalu diverifikasi ulang. Dokumen yang sudah
+  // disahkan tidak pernah disunting diam-diam.
+  async function bukaKembali() {
+    setMemproses(true)
+    try {
+      if (tipe === 'kegiatan') await bukaKembaliLaporanKegiatan(id)
+      else await bukaKembaliLaporanKejadian(id)
+      toast('Verifikasi dibuka kembali — pelapor dapat memperbaiki laporannya')
+      muat(); onUbah?.()
+    } catch (e) {
+      toast(e.message || 'Gagal membuka kembali verifikasi', true)
+    } finally {
+      setMemproses(false)
+    }
+  }
+
   async function kecualikan() {
     setMemproses(true)
     try {
@@ -214,6 +231,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const bisaVerifikasiSesi = tipe === 'sesi' && data.status === 'MENUNGGU_VERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   const bisaKecualikan = tipe === 'sesi' && String(data.status).startsWith('PELANGGARAN') && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   const bisaEdit = (tipe === 'kegiatan' || tipe === 'kejadian') && data.pelapor_id === profil.id
+  // Yang boleh membuka kembali sama dengan yang boleh memverifikasi — Kasubnit
+  // dibatasi zonanya sendiri oleh RLS, bukan oleh tampilan ini.
+  const bisaBukaKembali = tipe !== 'sesi' && data.status === 'TERVERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   // Koordinat direkam otomatis saat sesi dibuka / laporan dikirim (lihat
   // getGeoPosition di storage.js) — bisa null kalau personel menolak izin
   // lokasi atau GPS-nya tidak terkunci saat itu.
@@ -426,6 +446,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
               )}
               {bisaEdit && !editMode && data.status === 'MENUNGGU_VERIFIKASI' && <button onClick={mulaiEdit} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">✎ Edit</button>}
               {bisaKecualikan && <button onClick={kecualikan} disabled={memproses} className="rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold">Simpan &amp; Kecualikan</button>}
+              {bisaBukaKembali && (
+                <button onClick={bukaKembali} disabled={memproses} className="rounded-lg border border-warn px-3.5 py-2 text-[12px] font-semibold text-warn hover:bg-warn-bg disabled:opacity-50">
+                  ↺ Buka Kembali
+                </button>
+              )}
               {(bisaVerifikasi || bisaVerifikasiSesi) && (
                 <button onClick={verifikasi} disabled={memproses} className="rounded-lg bg-navy-950 px-4 py-2 text-[12.5px] font-semibold text-white disabled:opacity-50">✓ Verifikasi</button>
               )}
