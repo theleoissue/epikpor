@@ -193,14 +193,28 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   }
 
   async function salinWA() {
+    // Tab kosong dibuka SEKARANG, sebelum await apa pun — begitu ada jeda
+    // async (mis. menunggu ambilKasatLantas ke server), sebagian besar
+    // peramban sudah menganggap "gestur pengguna"-nya kedaluwarsa dan
+    // memblokir window.open sebagai popup. Membuka lebih dulu lalu mengarahkan
+    // tab yang sama belakangan menghindari itu.
+    const tab = window.open('', '_blank')
     try {
       // Nama pejabat penanda tangan diambil saat tombol ditekan, bukan
       // disimpan di kode — lihat catatan di ambilKasatLantas().
       const kasat = await ambilKasatLantas().catch(() => null)
-      await navigator.clipboard.writeText(buildLaporanKejadianWA(data, kasat))
-      toast(kasat ? 'Teks laporan WhatsApp disalin' : 'Tersalin, tapi belum ada akun Kasat Lantas untuk tanda tangan')
+      const teks = buildLaporanKejadianWA(data, kasat)
+      // Disalin juga ke clipboard sebagai cadangan — wa.me membatasi panjang
+      // teks yang bisa disisipkan lewat tautan, dan sebagian WebView di HP
+      // jauh lebih ketat lagi, jadi laporan yang panjang bisa terpotong.
+      await navigator.clipboard.writeText(teks).catch(() => {})
+      const tautan = `https://wa.me/?text=${encodeURIComponent(teks)}`
+      if (tab) tab.location.href = tautan
+      else window.open(tautan, '_blank')
+      toast(kasat ? 'WhatsApp dibuka, teks juga disalin sebagai cadangan' : 'WhatsApp dibuka — belum ada akun Kasat Lantas untuk tanda tangan')
     } catch {
-      toast('Gagal menyalin teks laporan', true)
+      tab?.close()
+      toast('Gagal membuka WhatsApp', true)
     }
   }
 
