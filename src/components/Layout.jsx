@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import NotifBell from './NotifBell'
+import logoShield from '../assets/logo-shield.png'
 import StatusAntrean from './StatusAntrean'
 import { menuUntukPeran, LABEL_PERAN } from '../lib/menu'
 import { keluar, sedangImpersonasi, kembaliDariImpersonasi } from '../lib/auth'
@@ -60,7 +61,7 @@ export default function Layout({ profil }) {
       <div className="flex items-center justify-between border-b-[3px] border-brass bg-navy-950 px-4 text-white md:col-span-2">
         <div className="flex items-center gap-2.5">
           <button className="md:hidden text-xl" onClick={() => setMenuMobileTerbuka((v) => !v)}>☰</button>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brass to-[#9c7c2f] font-display text-[12.5px] font-extrabold text-navy-950">EP</div>
+          <img src={logoShield} alt="" className="h-8 w-8 flex-shrink-0" />
           <div>
             <div className="font-display text-[14.5px] font-bold leading-tight">E-Pikpor</div>
             <div className="hidden text-[10.5px] text-white/60 sm:block">Unit Gakkum Satlantas Polrestabes Bandung</div>

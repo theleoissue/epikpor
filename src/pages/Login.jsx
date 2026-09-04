@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { masuk, adaAdmin, daftarAdminPertama } from '../lib/auth'
+import logoLengkap from '../assets/logo-lengkap.png'
+import logoShield from '../assets/logo-shield.png'
 
 export default function Login() {
   const [nrp, setNrp] = useState('')
@@ -29,9 +31,10 @@ export default function Login() {
   if (modeSetup) return <SetupAdminPertama />
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6" style={{ background: 'radial-gradient(circle at 20% 20%, #16294A, #0B1424 65%)' }}>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6" style={{ background: 'radial-gradient(circle at 20% 20%, #16294A, #0B1424 65%)' }}>
+      <img src={logoLengkap} alt="E-Pikpor" className="h-14 w-auto sm:h-16" />
       <form onSubmit={handleSubmit} className="w-full max-w-[420px] rounded-[20px] bg-paper p-9 shadow-2xl">
-        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brass to-[#9c7c2f] font-display text-[17px] font-extrabold text-navy-950">EP</div>
+        <img src={logoShield} alt="" className="mb-4 h-11 w-11" />
         <h1 className="font-display text-[22px] font-semibold">Masuk ke E-Pikpor</h1>
         <p className="mb-6 mt-1 text-[13px] leading-relaxed text-ink-soft">
           Unit Gakkum Satlantas Polrestabes Bandung. Masuk dengan NRP dan kata sandi Anda.
@@ -96,9 +99,10 @@ function SetupAdminPertama() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6" style={{ background: 'radial-gradient(circle at 20% 20%, #16294A, #0B1424 65%)' }}>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6" style={{ background: 'radial-gradient(circle at 20% 20%, #16294A, #0B1424 65%)' }}>
+      <img src={logoLengkap} alt="E-Pikpor" className="h-14 w-auto sm:h-16" />
       <form onSubmit={handleSubmit} className="w-full max-w-[440px] rounded-[20px] bg-paper p-9 shadow-2xl">
-        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brass to-[#9c7c2f] font-display text-[17px] font-extrabold text-navy-950">EP</div>
+        <img src={logoShield} alt="" className="mb-4 h-11 w-11" />
         <h1 className="font-display text-[22px] font-semibold">Pengaturan Awal</h1>
         <p className="mb-6 mt-1 text-[13px] leading-relaxed text-ink-soft">
           Belum ada akun Administrator sama sekali di E-Pikpor ini. Daftarkan diri Anda sebagai Administrator pertama — langkah ini cuma tersedia sekali, sebelum ada Admin.

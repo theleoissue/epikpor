@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0B1424"/>
-  <path d="M32 10l17 6v13c0 12-7.5 20.5-17 25-9.5-4.5-17-13-17-25V16z" fill="#C9A24B"/>
-  <text x="32" y="40" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0B1424" text-anchor="middle">EP</text>
-</svg>
