@@ -5,10 +5,11 @@ import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
 import { fmtTime, fmtDate, fmtRupiah, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
 import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan, bukaKembaliLaporanKegiatan } from '../lib/laporanKegiatanApi'
-import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, bukaKembaliLaporanKejadian, ambilLogKejadian } from '../lib/laporanKejadianApi'
+import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, bukaKembaliLaporanKejadian, ambilLogKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
 import { ambilKasatLantas } from '../lib/referensiApi'
+import { unggahFoto } from '../lib/storage'
 import {
   KELENGKAPAN_DEF, STATUS_KELENGKAPAN_OPT, bacaStatusKelengkapan,
   ADA, TIDAK_ADA, BELUM_DIPERIKSA, KONDISI_OPT, KATEGORI_KENDARAAN,
@@ -37,6 +38,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const [teksKomentar, setTeksKomentar] = useState('')
   const [lightboxAwal, setLightboxAwal] = useState(null)
   const [memproses, setMemproses] = useState(false)
+  const [mengunggahFoto, setMengunggahFoto] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editLokasi, setEditLokasi] = useState('')
   const [editKeterangan, setEditKeterangan] = useState('')
@@ -224,6 +226,25 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
     }
   }
 
+  // Susulan foto TKP untuk laporan yang sudah terkirim (mis. dokumentasi
+  // manual/WhatsApp lama yang baru menyusul) — di luar jalur normal formulir
+  // Kejadian yang cuma bisa lampirkan foto saat pertama kali mengirim.
+  async function tambahFoto(files) {
+    if (!files?.length) return
+    setMengunggahFoto(true)
+    try {
+      const paths = []
+      for (const file of files) paths.push(await unggahFoto('foto-kejadian', file))
+      await tambahLampiranKejadian(id, paths)
+      toast('Foto ditambahkan')
+      muat()
+    } catch (e) {
+      toast(e.message || 'Gagal mengunggah foto', true)
+    } finally {
+      setMengunggahFoto(false)
+    }
+  }
+
   async function unduhKolase() {
     setMemproses(true)
     try {
@@ -254,6 +275,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   // Yang boleh membuka kembali sama dengan yang boleh memverifikasi — Kasubnit
   // dibatasi zonanya sendiri oleh RLS, bukan oleh tampilan ini.
   const bisaBukaKembali = tipe !== 'sesi' && data.status === 'TERVERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
+  // Wewenang sama dengan hapus arsip (RLS-10/RLS-11) — bukan pelapor, supaya
+  // dokumentasi susulan bisa dilampirkan tanpa tergantung status verifikasi.
+  const bisaTambahFoto = tipe === 'kejadian' && ['ADMIN', 'KANIT_GAKKUM'].includes(profil.peran_sistem)
   // Koordinat direkam otomatis saat sesi dibuka / laporan dikirim (lihat
   // getGeoPosition di storage.js) — bisa null kalau personel menolak izin
   // lokasi atau GPS-nya tidak terkunci saat itu.
@@ -395,7 +419,18 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
             </div>
           ) : (
             <div className="mb-4">
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Lampiran foto</div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Lampiran foto</span>
+                {bisaTambahFoto && (
+                  <label className="cursor-pointer rounded-lg border border-line px-2.5 py-1 text-[11px] font-semibold hover:border-brass">
+                    {mengunggahFoto ? 'Mengunggah…' : '+ Tambah Foto'}
+                    <input
+                      type="file" accept="image/*" multiple hidden disabled={mengunggahFoto}
+                      onChange={(e) => { tambahFoto([...e.target.files]); e.target.value = '' }}
+                    />
+                  </label>
+                )}
+              </div>
               {fotoUrls.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-line bg-white p-6 text-center text-[12px] text-ink-soft">📷 Tidak ada foto tersimpan</div>
               ) : (
