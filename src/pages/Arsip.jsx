@@ -62,7 +62,7 @@ export default function Arsip() {
 
   function unduhCsv() {
     const header = ['Waktu', 'Ringkasan', 'Zona', 'Regu', 'Pelapor', 'Status']
-    const lines = [header.join(','), ...hasil.map((r) => [fmtTime(r.waktu), `"${r.ringkasan.replaceAll('"', '""')}"`, r.zona, r.regu, r.pelapor, r.status].join(','))]
+    const lines = [header.join(','), ...hasil.map((r) => [`"${fmtTime(r.waktu)} WIB, ${fmtDate(r.waktu)}"`, `"${r.ringkasan.replaceAll('"', '""')}"`, r.zona, r.regu, r.pelapor, r.status].join(','))]
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob); a.download = `arsip_epikpor_${tab}.csv`; a.click()
@@ -114,7 +114,7 @@ export default function Arsip() {
             {hasil.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-ink-soft">Tidak ada hasil.</td></tr>}
             {hasil.map((r) => (
               <tr key={r.id} className="border-t border-paper-dim">
-                <td className="px-3.5 py-2.5 font-mono">{fmtTime(r.waktu)}, {fmtDate(r.waktu).split(',')[0]}</td>
+                <td className="px-3.5 py-2.5 font-mono">{fmtTime(r.waktu)} WIB, {fmtDate(r.waktu)}</td>
                 <td className="px-3.5 py-2.5">{r.ringkasan}</td>
                 <td className="px-3.5 py-2.5">Zona {r.zona} · Regu {r.regu}</td>
                 <td className="px-3.5 py-2.5">{r.pelapor}</td>
