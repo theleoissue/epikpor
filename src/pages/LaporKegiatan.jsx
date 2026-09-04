@@ -139,6 +139,10 @@ export default function LaporKegiatan() {
 
         <div className="mb-4">
           <label className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft">Lampiran foto (opsional)</label>
+          {/* Kamera HP cuma bisa mengambil satu foto tiap kali dibuka —
+              batasan sistem kamera perangkat. Menekan tombol berkali-kali
+              TETAP menambah foto baru, tidak menghapus yang sebelumnya. */}
+          <p className="mb-2 text-[11px] text-ink-soft">Tekan "Ambil foto langsung" berkali-kali untuk menambah beberapa foto.</p>
           <div className="grid grid-cols-2 gap-2">
             <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
               📷 Ambil foto langsung
@@ -149,6 +153,7 @@ export default function LaporKegiatan() {
               <input type="file" accept="image/*" multiple className="hidden" onChange={tambahFoto} />
             </label>
           </div>
+          {foto.length > 0 && <div className="mt-2 text-[11px] font-semibold text-ok">✓ {foto.length} foto terkumpul</div>}
           {foto.length > 0 && (
             <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
               {foto.map((f, i) => (

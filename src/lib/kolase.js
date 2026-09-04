@@ -48,11 +48,85 @@ function muatGambar(url) {
   })
 }
 
-// 1 foto  -> 1 kolom; 2 foto -> 2 kolom; 3-4 -> 2 kolom; 5+ -> 3 kolom.
-function hitungKolom(jumlah) {
-  if (jumlah <= 1) return 1
-  if (jumlah <= 4) return 2
-  return 3
+// Tata letak per jumlah foto — dirancang supaya tiap sel punya rasio yang
+// wajar untuk jumlah itu, BUKAN grid seragam yang dipaksakan. Tetap dipadukan
+// dengan gambarCover() (potong, bukan regangkan), jadi foto tidak pernah
+// gepeng/lonjong — bedanya di sini cuma bentuk selnya per jumlah foto.
+//
+// Mengembalikan { sel: [{x,y,w,h}], tinggi } dalam satuan piksel relatif
+// terhadap area konten (lebar = cw, mulai dari x=0/y=0).
+function hitungTataLetak(jumlah, cw) {
+  const kolomRata = (n, rasio) => {
+    const w = Math.floor((cw - JARAK * (n - 1)) / n)
+    const h = Math.round(w * rasio)
+    return { w, h, sel: Array.from({ length: n }, (_, i) => ({ x: i * (w + JARAK), y: 0, w, h })) }
+  }
+
+  if (jumlah === 1) {
+    // Satu foto: hero lanskap lebar, tidak perlu dibagi.
+    const w = cw, h = Math.round(w * 0.62)
+    return { sel: [{ x: 0, y: 0, w, h }], tinggi: h }
+  }
+
+  if (jumlah === 2) {
+    // Berdampingan, agak lebih tinggi karena tiap sel lebih sempit.
+    const { sel, h } = kolomRata(2, 0.82)
+    return { sel, tinggi: h }
+  }
+
+  if (jumlah === 3) {
+    // Satu besar di kiri + dua kecil bertumpuk di kanan — susunan kolase
+    // klasik untuk tiga foto, bukan tiga kolom sama rata yang bikin tiap
+    // foto jadi kurus.
+    const wBesar = Math.round(cw * 0.62)
+    const wKecil = cw - wBesar - JARAK
+    const hBesar = Math.round(wBesar * 0.82)
+    const hKecil = Math.round((hBesar - JARAK) / 2)
+    return {
+      tinggi: hBesar,
+      sel: [
+        { x: 0, y: 0, w: wBesar, h: hBesar },
+        { x: wBesar + JARAK, y: 0, w: wKecil, h: hKecil },
+        { x: wBesar + JARAK, y: hKecil + JARAK, w: wKecil, h: hBesar - hKecil - JARAK },
+      ],
+    }
+  }
+
+  if (jumlah === 4) {
+    // 2x2 rata — jumlah yang pas untuk grid seragam.
+    const { sel: baris1, h } = kolomRata(2, 0.78)
+    const baris2 = baris1.map((s) => ({ ...s, y: h + JARAK }))
+    return { sel: [...baris1, ...baris2], tinggi: h * 2 + JARAK }
+  }
+
+  if (jumlah === 5) {
+    // 3 di atas (lebih pendek) + 2 di bawah (lebih lebar) — dua baris tidak
+    // sama tingginya, karena baris 2-kolom wajar lebih tinggi per selnya.
+    const atas = kolomRata(3, 0.78)
+    const bawahW = Math.floor((cw - JARAK) / 2)
+    const bawahH = Math.round(bawahW * 0.62)
+    const bawah = [0, 1].map((i) => ({ x: i * (bawahW + JARAK), y: atas.h + JARAK, w: bawahW, h: bawahH }))
+    return { sel: [...atas.sel, ...bawah], tinggi: atas.h + JARAK + bawahH }
+  }
+
+  if (jumlah === 6) {
+    // 3x2 rata.
+    const { sel: baris1, h } = kolomRata(3, 0.78)
+    const baris2 = baris1.map((s) => ({ ...s, y: h + JARAK }))
+    return { sel: [...baris1, ...baris2], tinggi: h * 2 + JARAK }
+  }
+
+  // 7+: grid 3 kolom, baris terakhir boleh tidak penuh (dibiarkan rata kiri,
+  // bukan dilebarkan — melebarkan berarti sel jadi tidak seragam dengan
+  // baris di atasnya).
+  const kolom = 3
+  const w = Math.floor((cw - JARAK * (kolom - 1)) / kolom)
+  const h = Math.round(w * 0.72)
+  const barisJumlah = Math.ceil(jumlah / kolom)
+  const sel = Array.from({ length: jumlah }, (_, i) => ({
+    x: (i % kolom) * (w + JARAK), y: Math.floor(i / kolom) * (h + JARAK), w, h,
+  }))
+  return { sel, tinggi: barisJumlah * h + (barisJumlah - 1) * JARAK }
 }
 
 function potong(ctx, teks, maksLebar) {
@@ -68,11 +142,9 @@ export async function buatKolaseTkp(urls, info) {
   if (!urls || urls.length === 0) throw new Error('Belum ada foto TKP untuk dijadikan kolase.')
 
   const gambar = await Promise.all(urls.map(muatGambar))
-  const kolom = hitungKolom(gambar.length)
-  const baris = Math.ceil(gambar.length / kolom)
-  const lebarSel = Math.floor((LEBAR - PAD * 2 - JARAK * (kolom - 1)) / kolom)
-  const tinggiSel = Math.round(lebarSel * 0.72)
-  const tinggi = TINGGI_KOP + PAD + baris * tinggiSel + (baris - 1) * JARAK + PAD + TINGGI_KAKI
+  const cw = LEBAR - PAD * 2
+  const { sel, tinggi: tinggiFoto } = hitungTataLetak(gambar.length, cw)
+  const tinggi = TINGGI_KOP + PAD + tinggiFoto + PAD + TINGGI_KAKI
 
   const kanvas = document.createElement('canvas')
   kanvas.width = LEBAR
@@ -106,21 +178,22 @@ export async function buatKolaseTkp(urls, info) {
   ].filter(Boolean).join('   |   ')
   ctx.fillText(potong(ctx, barisInfo, LEBAR - PAD * 2), PAD, 104)
 
-  // Foto
+  // Foto — tiap sel punya ukurannya sendiri menurut hitungTataLetak(), diisi
+  // dengan gambarCover() supaya foto memenuhi selnya tanpa pernah diregangkan
+  // (dipotong di sisi terpanjang, bukan digepengkan).
   gambar.forEach((img, i) => {
-    const kol = i % kolom
-    const bar = Math.floor(i / kolom)
-    const x = PAD + kol * (lebarSel + JARAK)
-    const y = TINGGI_KOP + PAD + bar * (tinggiSel + JARAK)
+    const { x: sx, y: sy, w, h } = sel[i]
+    const x = PAD + sx
+    const y = TINGGI_KOP + PAD + sy
     ctx.fillStyle = WARNA.navyMuda
-    ctx.fillRect(x, y, lebarSel, tinggiSel)
-    gambarCover(ctx, img, x, y, lebarSel, tinggiSel)
+    ctx.fillRect(x, y, w, h)
+    gambarCover(ctx, img, x, y, w, h)
     // Nomor urut foto, supaya bisa dirujuk di berita acara.
     ctx.fillStyle = 'rgba(11,20,36,0.82)'
-    ctx.fillRect(x, y + tinggiSel - 30, 46, 30)
+    ctx.fillRect(x, y + h - 30, 46, 30)
     ctx.fillStyle = WARNA.brass
     ctx.font = 'bold 15px Consolas, monospace'
-    ctx.fillText(String(i + 1).padStart(2, '0'), x + 13, y + tinggiSel - 10)
+    ctx.fillText(String(i + 1).padStart(2, '0'), x + 13, y + h - 10)
   })
 
   // Kaki

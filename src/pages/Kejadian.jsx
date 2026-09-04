@@ -609,7 +609,13 @@ export default function Kejadian() {
       </div>
 
       <div className="rounded-[14px] border border-line bg-white p-5">
-        <h3 className="mb-3 font-display text-[14.5px] font-semibold">Lampiran Foto TKP</h3>
+        <h3 className="mb-1 font-display text-[14.5px] font-semibold">Lampiran Foto TKP</h3>
+        {/* Kamera HP cuma bisa mengambil satu foto tiap kali dibuka — itu
+            batasan sistem kamera perangkat, bukan sesuatu yang bisa diakali
+            dari kode. Menekan "Ambil foto langsung" berkali-kali TETAP
+            menambah foto baru ke daftar (tidak menghapus yang sebelumnya),
+            jadi beberapa foto tetap bisa terkumpul lewat beberapa kali jepret. */}
+        <p className="mb-3 text-[11px] text-ink-soft">Tekan "Ambil foto langsung" berkali-kali untuk menambah beberapa foto — tiap jepretan otomatis ditambahkan, bukan menggantikan yang sudah ada.</p>
         <div className="grid grid-cols-2 gap-2">
           <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
             📷 Ambil foto langsung
@@ -620,6 +626,9 @@ export default function Kejadian() {
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { setFoto((f) => [...f, ...Array.from(e.target.files)]); e.target.value = '' }} />
           </label>
         </div>
+        {foto.length > 0 && (
+          <div className="mt-2 text-[11px] font-semibold text-ok">✓ {foto.length} foto terkumpul</div>
+        )}
         {foto.length > 0 && (
           <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
             {foto.map((f, i) => (
