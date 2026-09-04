@@ -88,6 +88,14 @@ export async function tambahLampiranKejadian(laporan_kejadian_id, paths) {
   if (error) throw error
 }
 
+// Hapus satu foto saja (mis. salah unggah/dobel) — beda dari hapusLaporanKejadian
+// yang menghapus seluruh laporan. Pakai policy RLS-10 yang sama (ADMIN/KANIT_GAKKUM).
+export async function hapusSatuLampiranKejadian(id, storage_path) {
+  await supabase.storage.from('foto-kejadian').remove([storage_path])
+  const { error } = await supabase.from('lampiran_kejadian').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function ambilLaporanKejadianMenunggu() {
   const { data, error } = await supabase
     .from('laporan_kejadian')

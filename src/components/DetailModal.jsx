@@ -5,7 +5,7 @@ import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
 import { fmtTime, fmtDate, fmtRupiah, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
 import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan, bukaKembaliLaporanKegiatan } from '../lib/laporanKegiatanApi'
-import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, bukaKembaliLaporanKejadian, ambilLogKejadian, tambahLampiranKejadian } from '../lib/laporanKejadianApi'
+import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, bukaKembaliLaporanKejadian, ambilLogKejadian, tambahLampiranKejadian, hapusSatuLampiranKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
 import { ambilKasatLantas } from '../lib/referensiApi'
@@ -32,6 +32,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const toast = useToast()
   const [data, setData] = useState(null)
   const [fotoUrls, setFotoUrls] = useState([])
+  const [lampiranKejadian, setLampiranKejadian] = useState([]) // sejajar fotoUrls: {id, storage_path}, khusus tipe kejadian
   const [grupFoto, setGrupFoto] = useState(null) // khusus sesi: foto dipisah per tahap (masuk/keluar)
   const [komentar, setKomentar] = useState([])
   const [log, setLog] = useState([])
@@ -59,8 +60,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       } else if (tipe === 'kejadian') {
         const x = await ambilSatuKejadian(id)
         setData(x)
-        const paths = (x.lampiran || []).sort((a, b) => a.urutan - b.urutan).map((l) => l.storage_path)
-        setFotoUrls((await Promise.all(paths.map((p) => urlTertandaTangan('foto-kejadian', p)))).filter(Boolean))
+        const lampiran = (x.lampiran || []).sort((a, b) => a.urutan - b.urutan)
+        const dijamin = await Promise.all(lampiran.map(async (l) => ({ ...l, url: await urlTertandaTangan('foto-kejadian', l.storage_path) })))
+        const valid = dijamin.filter((l) => l.url)
+        setFotoUrls(valid.map((l) => l.url))
+        setLampiranKejadian(valid)
         setKomentar(await ambilKomentar('KEJADIAN', id))
         setLog(await ambilLogKejadian(id))
       } else {
@@ -242,6 +246,17 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       toast(e.message || 'Gagal mengunggah foto', true)
     } finally {
       setMengunggahFoto(false)
+    }
+  }
+
+  async function hapusFoto(lampiran) {
+    if (!window.confirm('Hapus foto ini?')) return
+    try {
+      await hapusSatuLampiranKejadian(lampiran.id, lampiran.storage_path)
+      toast('Foto dihapus')
+      muat()
+    } catch (e) {
+      toast(e.message || 'Gagal menghapus foto', true)
     }
   }
 
@@ -436,9 +451,18 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
               ) : (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                   {fotoUrls.map((u, i) => (
-                    <button key={i} onClick={() => setLightboxAwal(i)} className="aspect-square overflow-hidden rounded-lg border border-line">
-                      <img src={u} alt="" className="h-full w-full object-cover" />
-                    </button>
+                    <div key={i} className="relative aspect-square overflow-hidden rounded-lg border border-line">
+                      <button onClick={() => setLightboxAwal(i)} className="h-full w-full">
+                        <img src={u} alt="" className="h-full w-full object-cover" />
+                      </button>
+                      {bisaTambahFoto && lampiranKejadian[i] && (
+                        <button
+                          onClick={() => hapusFoto(lampiranKejadian[i])}
+                          title="Hapus foto ini"
+                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-bad text-[11px] font-bold leading-none text-white shadow"
+                        >✕</button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
