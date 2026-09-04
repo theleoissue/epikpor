@@ -109,3 +109,13 @@ export async function bukaKembaliLaporanKegiatan(id) {
   if (error) throw error
   if (!data) throw new Error('Laporan tidak ditemukan atau Anda tidak berhak membukanya kembali.')
 }
+
+// Hapus permanen (khusus ADMIN/KANIT_GAKKUM lewat RLS-10) — foto lampiran ikut
+// dibersihkan dari Storage, baris lampiran_kegiatan ikut lewat ON DELETE CASCADE.
+export async function hapusLaporanKegiatan(id) {
+  const { data: lampiran } = await supabase.from('lampiran_kegiatan').select('storage_path').eq('laporan_kegiatan_id', id)
+  if (lampiran?.length) await supabase.storage.from('foto-kegiatan').remove(lampiran.map((l) => l.storage_path))
+  const { data, error } = await supabase.from('laporan_kegiatan').delete().eq('id', id).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Laporan tidak ditemukan atau Anda tidak berhak menghapusnya.')
+}

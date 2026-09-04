@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react'
-import { cariArsipKegiatan } from '../lib/laporanKegiatanApi'
-import { cariArsipKejadian } from '../lib/laporanKejadianApi'
-import { ambilArsipSesi } from '../lib/sesiPiketApi'
+import { cariArsipKegiatan, hapusLaporanKegiatan } from '../lib/laporanKegiatanApi'
+import { cariArsipKejadian, hapusLaporanKejadian } from '../lib/laporanKejadianApi'
+import { ambilArsipSesi, hapusSesiPiket } from '../lib/sesiPiketApi'
 import { ambilZona, ambilRegu, ambilJenisKegiatan, ambilJenisKecelakaan } from '../lib/referensiApi'
 import { fmtTime, fmtDate } from '../lib/format'
 import { useToast } from '../components/Toast'
+import { useAuth } from '../lib/auth'
 import DetailModal from '../components/DetailModal'
+
+const HAPUS_FN = { kegiatan: hapusLaporanKegiatan, kejadian: hapusLaporanKejadian, sesi: hapusSesiPiket }
 
 const TABS = [['kegiatan', 'Laporan Kegiatan'], ['kejadian', 'Kejadian Kecelakaan'], ['sesi', 'Sesi Piket']]
 
 export default function Arsip() {
   const toast = useToast()
+  const { profil } = useAuth()
+  const bolehHapus = profil.peran_sistem === 'ADMIN' || profil.peran_sistem === 'KANIT_GAKKUM'
   const [tab, setTab] = useState('kegiatan')
   const [zona, setZona] = useState([])
   const [regu, setRegu] = useState([])
@@ -19,6 +24,7 @@ export default function Arsip() {
   const [filter, setFilter] = useState({ kataKunci: '', zona_id: '', regu_id: '', jenis_kegiatan_id: '', jenis_kecelakaan_id: '', dari: '', sampai: '', nomor: '' })
   const [hasil, setHasil] = useState([])
   const [detailAktif, setDetailAktif] = useState(null)
+  const [hapusTarget, setHapusTarget] = useState(null)
 
   useEffect(() => {
     ambilZona().then(setZona); ambilRegu().then(setRegu)
@@ -42,6 +48,17 @@ export default function Arsip() {
     }
   }
   useEffect(() => { cari() }, [tab])
+
+  async function hapus() {
+    try {
+      await HAPUS_FN[hapusTarget.tipe](hapusTarget.id)
+      toast('Laporan dihapus permanen.')
+      setHapusTarget(null)
+      cari()
+    } catch (e) {
+      toast(e.message || 'Gagal menghapus.', true)
+    }
+  }
 
   function unduhCsv() {
     const header = ['Waktu', 'Ringkasan', 'Zona', 'Regu', 'Pelapor', 'Status']
@@ -104,7 +121,12 @@ export default function Arsip() {
                 <td className="px-3.5 py-2.5">
                   <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${r.status === 'TERVERIFIKASI' || r.status === 'TERTUTUP' ? 'bg-ok-bg text-ok' : 'bg-warn-bg text-warn'}`}>{r.status.replaceAll('_', ' ')}</span>
                 </td>
-                <td className="px-3.5 py-2.5"><button onClick={() => setDetailAktif({ tipe: tab, id: r.id })} className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-semibold">Lihat</button></td>
+                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                  <button onClick={() => setDetailAktif({ tipe: tab, id: r.id })} className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-semibold">Lihat</button>
+                  {bolehHapus && (
+                    <button onClick={() => setHapusTarget({ tipe: tab, id: r.id, ringkasan: r.ringkasan })} className="ml-1.5 rounded-lg border border-bad/30 px-2.5 py-1.5 text-[11px] font-semibold text-bad hover:bg-bad-bg">Hapus</button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -114,6 +136,50 @@ export default function Arsip() {
       {detailAktif && (
         <DetailModal tipe={detailAktif.tipe} id={detailAktif.id} onClose={() => setDetailAktif(null)} onUbah={cari} />
       )}
+
+      {hapusTarget && (
+        <KonfirmasiHapus target={hapusTarget} onBatal={() => setHapusTarget(null)} onHapus={hapus} />
+      )}
+    </div>
+  )
+}
+
+function KonfirmasiHapus({ target, onBatal, onHapus }) {
+  const [teks, setTeks] = useState('')
+  const [memuat, setMemuat] = useState(false)
+  const cocok = teks.trim().toUpperCase() === 'HAPUS'
+
+  async function konfirmasi() {
+    setMemuat(true)
+    try { await onHapus() } finally { setMemuat(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="font-display text-[17px] font-semibold text-bad">Hapus laporan permanen?</h2>
+        <p className="mt-2 text-[12.5px] leading-relaxed text-ink-soft">
+          <span className="font-semibold text-ink">{target.ringkasan}</span> akan dihapus <span className="font-semibold">selama-lamanya</span>, termasuk seluruh foto lampirannya. Tindakan ini tidak bisa dibatalkan.
+        </p>
+        <p className="mt-3 text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft">Ketik HAPUS untuk konfirmasi</p>
+        <input
+          autoFocus
+          value={teks}
+          onChange={(e) => setTeks(e.target.value)}
+          className="mt-1.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-[13.5px] outline-none focus:border-bad focus:ring-2 focus:ring-bad/20"
+          placeholder="HAPUS"
+        />
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onBatal} className="rounded-lg border border-line px-4 py-2 text-[12.5px] font-semibold">Batal</button>
+          <button
+            onClick={konfirmasi}
+            disabled={!cocok || memuat}
+            className="rounded-lg bg-bad px-4 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
+          >
+            {memuat ? 'Menghapus…' : 'Hapus Permanen'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

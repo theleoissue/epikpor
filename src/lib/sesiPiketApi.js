@@ -82,6 +82,23 @@ export async function ambilSatuSesi(id) {
   return data
 }
 
+// Hapus permanen (khusus ADMIN/KANIT_GAKKUM lewat RLS-10) — gagal dengan error
+// FK kalau sesi ini masih dirujuk laporan_kegiatan/laporan_kejadian lain
+// (sesi_piket_id di sana tidak di-cascade, memang disengaja).
+export async function hapusSesiPiket(id) {
+  const { data: sesi, error: errAmbil } = await supabase
+    .from('sesi_piket')
+    .select('foto_swafoto_path, foto_lokasi_path, foto_serah_terima_path')
+    .eq('id', id)
+    .maybeSingle()
+  if (errAmbil) throw errAmbil
+  const paths = [sesi?.foto_swafoto_path, sesi?.foto_lokasi_path, sesi?.foto_serah_terima_path].filter(Boolean)
+  if (paths.length) await supabase.storage.from('foto-sesi').remove(paths)
+  const { data, error } = await supabase.from('sesi_piket').delete().eq('id', id).select().maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Sesi tidak ditemukan atau Anda tidak berhak menghapusnya.')
+}
+
 export async function ambilLogSesi(sesi_id) {
   const { data, error } = await supabase
     .from('log_aktivitas')
