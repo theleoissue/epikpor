@@ -2,22 +2,26 @@
 //
 // Menggabungkan lampiran foto satu kejadian jadi satu gambar berkop, supaya
 // bisa langsung dilampirkan ke laporan atau dikirim lewat WhatsApp tanpa
-// mengirim foto satu per satu. Semua penggambaran dilakukan di sisi peramban
-// (Canvas) — tidak ada layanan luar yang menerima foto TKP.
+// mengirim foto satu per satu. Kopnya memakai desain resmi Satlantas
+// Polrestabes Bandung (dari Canva, dikirim client) apa adanya sebagai latar;
+// cuma strip info dan grid foto yang digambar lewat Canvas. Semua
+// penggambaran dilakukan di sisi peramban — tidak ada layanan luar yang
+// menerima foto TKP.
 
 import { fmtDate, fmtTime } from './format'
+import kopSatlantasUrl from '../assets/kop-satlantas.jpg'
 
-const LEBAR = 1200
-const PAD = 28
-const TINGGI_KOP = 132
-const TINGGI_KAKI = 52
+// Kop resmi Satlantas Polrestabes Bandung (dari Canva, dikirim client) —
+// dipakai apa adanya sebagai latar, bukan digambar ulang lewat kode seperti
+// kop generik di bawah. Batas antara kop dan area foto (y=234, di bawah bar
+// hitam ikon medsos) diukur langsung dari pikselnya, bukan ditebak.
+const KOP_SATLANTAS_TINGGI_KOP = 234
+
 const JARAK = 14
 
 const WARNA = {
-  navy: '#0B1424',
   navyMuda: '#16294A',
   brass: '#C9A24B',
-  kertas: '#F3F1EA',
   putih: '#FFFFFF',
   redup: '#9AA4BE',
 }
@@ -48,85 +52,43 @@ function muatGambar(url) {
   })
 }
 
-// Tata letak per jumlah foto — dirancang supaya tiap sel punya rasio yang
-// wajar untuk jumlah itu, BUKAN grid seragam yang dipaksakan. Tetap dipadukan
-// dengan gambarCover() (potong, bukan regangkan), jadi foto tidak pernah
-// gepeng/lonjong — bedanya di sini cuma bentuk selnya per jumlah foto.
-//
-// Mengembalikan { sel: [{x,y,w,h}], tinggi } dalam satuan piksel relatif
-// terhadap area konten (lebar = cw, mulai dari x=0/y=0).
-function hitungTataLetak(jumlah, cw) {
-  const kolomRata = (n, rasio) => {
-    const w = Math.floor((cw - JARAK * (n - 1)) / n)
-    const h = Math.round(w * rasio)
-    return { w, h, sel: Array.from({ length: n }, (_, i) => ({ x: i * (w + JARAK), y: 0, w, h })) }
+// Tata letak untuk KOTAK BERUKURAN TETAP (dipakai kop Satlantas — kanvasnya
+// sudah punya ukuran baku 1080x1080 seperti unggahan Instagram, jadi TIDAK
+// boleh dibuat lebih tinggi/pendek mengikuti jumlah foto seperti
+// hitungTataLetak() di atas). Sebagai gantinya, tinggi tiap baris dibagi rata
+// dari tinggi kotak yang sudah pasti, dan lebar tiap sel dalam satu baris
+// dibagi rata dari lebar kotak — supaya baris terakhir yang tidak penuh tetap
+// mengisi penuh lebarnya, bukan menyisakan celah kosong yang mencolok pada
+// kanvas berukuran tetap.
+function hitungTataLetakTetap(jumlah, cw, ch) {
+  const susunBaris = (barisIsi) => {
+    const n = barisIsi.length
+    const tinggiBaris = Math.floor((ch - JARAK * (n - 1)) / n)
+    let y = 0
+    const sel = []
+    barisIsi.forEach((jmlKolom, i) => {
+      const tinggi = i === n - 1 ? ch - y : tinggiBaris
+      const lebar = Math.floor((cw - JARAK * (jmlKolom - 1)) / jmlKolom)
+      for (let k = 0; k < jmlKolom; k++) {
+        const w = k === jmlKolom - 1 ? cw - k * (lebar + JARAK) : lebar
+        sel.push({ x: k * (lebar + JARAK), y, w, h: tinggi })
+      }
+      y += tinggi + JARAK
+    })
+    return sel
   }
 
-  if (jumlah === 1) {
-    // Satu foto: hero lanskap lebar, tidak perlu dibagi.
-    const w = cw, h = Math.round(w * 0.62)
-    return { sel: [{ x: 0, y: 0, w, h }], tinggi: h }
-  }
-
-  if (jumlah === 2) {
-    // Berdampingan, agak lebih tinggi karena tiap sel lebih sempit.
-    const { sel, h } = kolomRata(2, 0.82)
-    return { sel, tinggi: h }
-  }
-
-  if (jumlah === 3) {
-    // Satu besar di kiri + dua kecil bertumpuk di kanan — susunan kolase
-    // klasik untuk tiga foto, bukan tiga kolom sama rata yang bikin tiap
-    // foto jadi kurus.
-    const wBesar = Math.round(cw * 0.62)
-    const wKecil = cw - wBesar - JARAK
-    const hBesar = Math.round(wBesar * 0.82)
-    const hKecil = Math.round((hBesar - JARAK) / 2)
-    return {
-      tinggi: hBesar,
-      sel: [
-        { x: 0, y: 0, w: wBesar, h: hBesar },
-        { x: wBesar + JARAK, y: 0, w: wKecil, h: hKecil },
-        { x: wBesar + JARAK, y: hKecil + JARAK, w: wKecil, h: hBesar - hKecil - JARAK },
-      ],
-    }
-  }
-
-  if (jumlah === 4) {
-    // 2x2 rata — jumlah yang pas untuk grid seragam.
-    const { sel: baris1, h } = kolomRata(2, 0.78)
-    const baris2 = baris1.map((s) => ({ ...s, y: h + JARAK }))
-    return { sel: [...baris1, ...baris2], tinggi: h * 2 + JARAK }
-  }
-
-  if (jumlah === 5) {
-    // 3 di atas (lebih pendek) + 2 di bawah (lebih lebar) — dua baris tidak
-    // sama tingginya, karena baris 2-kolom wajar lebih tinggi per selnya.
-    const atas = kolomRata(3, 0.78)
-    const bawahW = Math.floor((cw - JARAK) / 2)
-    const bawahH = Math.round(bawahW * 0.62)
-    const bawah = [0, 1].map((i) => ({ x: i * (bawahW + JARAK), y: atas.h + JARAK, w: bawahW, h: bawahH }))
-    return { sel: [...atas.sel, ...bawah], tinggi: atas.h + JARAK + bawahH }
-  }
-
-  if (jumlah === 6) {
-    // 3x2 rata.
-    const { sel: baris1, h } = kolomRata(3, 0.78)
-    const baris2 = baris1.map((s) => ({ ...s, y: h + JARAK }))
-    return { sel: [...baris1, ...baris2], tinggi: h * 2 + JARAK }
-  }
-
-  // 7+: grid 3 kolom, baris terakhir boleh tidak penuh (dibiarkan rata kiri,
-  // bukan dilebarkan — melebarkan berarti sel jadi tidak seragam dengan
-  // baris di atasnya).
-  const kolom = 3
-  const w = Math.floor((cw - JARAK * (kolom - 1)) / kolom)
-  const h = Math.round(w * 0.72)
-  const barisJumlah = Math.ceil(jumlah / kolom)
-  const sel = Array.from({ length: jumlah }, (_, i) => ({
-    x: (i % kolom) * (w + JARAK), y: Math.floor(i / kolom) * (h + JARAK), w, h,
-  }))
-  return { sel, tinggi: barisJumlah * h + (barisJumlah - 1) * JARAK }
+  if (jumlah === 1) return susunBaris([1])
+  if (jumlah === 2) return susunBaris([1, 1]) // dua baris ditumpuk — kotaknya lanskap, jadi menumpuk lebih wajar daripada dua kolom kurus
+  if (jumlah === 3) return susunBaris([1, 2]) // satu foto besar di atas, dua kecil berdampingan di bawah
+  if (jumlah === 4) return susunBaris([2, 2])
+  if (jumlah === 5) return susunBaris([3, 2])
+  if (jumlah === 6) return susunBaris([3, 3])
+  // 7+: maksimal 3 kolom per baris, baris terakhir tetap mengisi penuh lebar.
+  const barisIsi = []
+  let sisa = jumlah
+  while (sisa > 0) { const n = Math.min(3, sisa); barisIsi.push(n); sisa -= n }
+  return susunBaris(barisIsi)
 }
 
 function potong(ctx, teks, maksLebar) {
@@ -138,80 +100,83 @@ function potong(ctx, teks, maksLebar) {
   return hasil + '…'
 }
 
-export async function buatKolaseTkp(urls, info) {
+// Kanvasnya mengikuti ukuran asli gambar kop (1080x1080, dari Canva) —
+// dirancang sebagai satu unggahan Instagram baku, bukan lampiran laporan
+// yang tingginya menyesuaikan jumlah foto.
+export async function buatKolaseSatlantas(urls, info) {
   if (!urls || urls.length === 0) throw new Error('Belum ada foto TKP untuk dijadikan kolase.')
 
-  const gambar = await Promise.all(urls.map(muatGambar))
-  const cw = LEBAR - PAD * 2
-  const { sel, tinggi: tinggiFoto } = hitungTataLetak(gambar.length, cw)
-  const tinggi = TINGGI_KOP + PAD + tinggiFoto + PAD + TINGGI_KAKI
+  const [kop, ...gambar] = await Promise.all([muatGambar(kopSatlantasUrl), ...urls.map(muatGambar)])
+  const LEBAR_KOP = kop.width
+  const TINGGI_TOTAL = kop.height
 
   const kanvas = document.createElement('canvas')
-  kanvas.width = LEBAR
-  kanvas.height = tinggi
+  kanvas.width = LEBAR_KOP
+  kanvas.height = TINGGI_TOTAL
   const ctx = kanvas.getContext('2d')
 
-  // Latar
-  ctx.fillStyle = WARNA.kertas
-  ctx.fillRect(0, 0, LEBAR, tinggi)
+  // Kop dipakai apa adanya — tidak digambar ulang, cuma ditempel penuh.
+  ctx.drawImage(kop, 0, 0, LEBAR_KOP, TINGGI_TOTAL)
 
-  // Kop
-  ctx.fillStyle = WARNA.navy
-  ctx.fillRect(0, 0, LEBAR, TINGGI_KOP)
-  ctx.fillStyle = WARNA.brass
-  ctx.fillRect(0, TINGGI_KOP - 4, LEBAR, 4)
+  // Strip info (lokasi/jenis/waktu) di atas area foto. Kop aslinya tidak
+  // menyediakan ruang untuk ini di dalam desainnya sendiri, jadi ditambahkan
+  // sebagai bar gelap tipis persis di bawah bar ikon medsos, sebelum foto.
+  const PAD_K = 24
+  const TINGGI_STRIP = 76
+  const yStrip = KOP_SATLANTAS_TINGGI_KOP
+  ctx.fillStyle = 'rgba(3,8,20,0.82)'
+  ctx.fillRect(0, yStrip, LEBAR_KOP, TINGGI_STRIP)
 
   ctx.fillStyle = WARNA.brass
   ctx.font = 'bold 15px Consolas, monospace'
-  ctx.fillText('DOKUMENTASI TEMPAT KEJADIAN PERKARA', PAD, 40)
-
+  ctx.fillText('DOKUMENTASI TEMPAT KEJADIAN PERKARA', PAD_K, yStrip + 22)
   ctx.fillStyle = WARNA.putih
-  ctx.font = 'bold 30px Georgia, serif'
-  ctx.fillText(potong(ctx, info.lokasi || 'Lokasi tidak dicatat', LEBAR - PAD * 2), PAD, 76)
-
+  ctx.font = 'bold 22px Georgia, serif'
+  ctx.fillText(potong(ctx, info.lokasi || 'Lokasi tidak dicatat', LEBAR_KOP - PAD_K * 2), PAD_K, yStrip + 48)
   ctx.fillStyle = WARNA.redup
-  ctx.font = '15px Calibri, Arial, sans-serif'
+  ctx.font = '13px Calibri, Arial, sans-serif'
   const barisInfo = [
     info.jenis,
     info.waktu ? `${fmtDate(info.waktu)} · ${fmtTime(info.waktu)} WIB` : null,
     info.zona ? `Zona ${info.zona}${info.regu ? ` · Regu ${info.regu}` : ''}` : null,
   ].filter(Boolean).join('   |   ')
-  ctx.fillText(potong(ctx, barisInfo, LEBAR - PAD * 2), PAD, 104)
+  ctx.fillText(potong(ctx, barisInfo, LEBAR_KOP - PAD_K * 2), PAD_K, yStrip + 68)
 
-  // Foto — tiap sel punya ukurannya sendiri menurut hitungTataLetak(), diisi
-  // dengan gambarCover() supaya foto memenuhi selnya tanpa pernah diregangkan
-  // (dipotong di sisi terpanjang, bukan digepengkan).
+  // Foto — mengisi PENUH sisa kanvas (kotak berukuran tetap), tidak pernah
+  // membuat kanvas ini lebih tinggi. Tetap memakai gambarCover() supaya
+  // tidak ada foto yang diregangkan.
+  const yFoto = yStrip + TINGGI_STRIP + JARAK
+  const cw = LEBAR_KOP - PAD_K * 2
+  const ch = TINGGI_TOTAL - yFoto - PAD_K
+  const sel = hitungTataLetakTetap(gambar.length, cw, ch)
+
   gambar.forEach((img, i) => {
     const { x: sx, y: sy, w, h } = sel[i]
-    const x = PAD + sx
-    const y = TINGGI_KOP + PAD + sy
+    const x = PAD_K + sx
+    const y = yFoto + sy
     ctx.fillStyle = WARNA.navyMuda
     ctx.fillRect(x, y, w, h)
     gambarCover(ctx, img, x, y, w, h)
-    // Nomor urut foto, supaya bisa dirujuk di berita acara.
     ctx.fillStyle = 'rgba(11,20,36,0.82)'
-    ctx.fillRect(x, y + h - 30, 46, 30)
+    ctx.fillRect(x, y + h - 28, 42, 28)
     ctx.fillStyle = WARNA.brass
-    ctx.font = 'bold 15px Consolas, monospace'
-    ctx.fillText(String(i + 1).padStart(2, '0'), x + 13, y + h - 10)
+    ctx.font = 'bold 14px Consolas, monospace'
+    ctx.fillText(String(i + 1).padStart(2, '0'), x + 12, y + h - 9)
   })
 
-  // Kaki
-  const yKaki = tinggi - TINGGI_KAKI
-  ctx.fillStyle = WARNA.navy
-  ctx.fillRect(0, yKaki, LEBAR, TINGGI_KAKI)
-  ctx.fillStyle = WARNA.redup
-  ctx.font = '14px Calibri, Arial, sans-serif'
-  ctx.fillText(potong(ctx, `Pelapor: ${info.pelapor || '-'}`, LEBAR / 2), PAD, yKaki + 32)
+  // Pelapor dicantumkan di pojok kanan bawah, di atas area foto terakhir —
+  // kop aslinya tidak punya bagian kaki seperti kolase generik.
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'
+  ctx.font = '11px Calibri, Arial, sans-serif'
   ctx.textAlign = 'right'
-  ctx.fillText(`${gambar.length} foto · E-Pikpor`, LEBAR - PAD, yKaki + 32)
+  ctx.fillText(potong(ctx, `Pelapor: ${info.pelapor || '-'} · ${gambar.length} foto`, cw), LEBAR_KOP - PAD_K, TINGGI_TOTAL - 8)
   ctx.textAlign = 'left'
 
   return new Promise((resolve, reject) => {
     kanvas.toBlob((blob) => {
       if (blob) resolve(blob)
       else reject(new Error('Gagal menyusun kolase.'))
-    }, 'image/jpeg', 0.9)
+    }, 'image/jpeg', 0.92)
   })
 }
 

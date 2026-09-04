@@ -15,7 +15,7 @@ import {
   JENIS_KELAMIN_OPT, SIM_JENIS_OPT, orangBaru, kendaraanBaru,
 } from '../lib/opsiKejadian'
 import { buildLaporanKejadianWA } from '../lib/waReport'
-import { buatKolaseTkp, unduhBlob } from '../lib/kolase'
+import { buatKolaseSatlantas, unduhBlob } from '../lib/kolase'
 
 const PERAN_VERIFIKATOR = ['KASUBNIT', 'KANIT_GAKKUM']
 
@@ -227,7 +227,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   async function unduhKolase() {
     setMemproses(true)
     try {
-      const blob = await buatKolaseTkp(fotoUrls, {
+      const blob = await buatKolaseSatlantas(fotoUrls, {
         lokasi: data.lokasi,
         jenis: data.jenis_kecelakaan?.nama,
         waktu: data.waktu_diterima || data.created_at,
