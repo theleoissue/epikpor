@@ -31,3 +31,11 @@ dist-ssr
 
 .vercel
 .env*
+
+# Migrasi SQL sekali-pakai berisi data pribadi nyata (nama/alamat/tanggal
+# lahir korban laka) — dijalankan manual di Supabase SQL Editor, sengaja
+# tidak masuk riwayat git.
+supabase/migrations/*_seed_laporan_*.sql
+supabase/migrations/*_koreksi_*.sql
+supabase/migrations/*_simulasi_*.sql
+*.lnk
