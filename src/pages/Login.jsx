@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { masuk, adaAdmin, daftarAdminPertama } from '../lib/auth'
 import logoLengkap from '../assets/logo-lengkap.png'
 import logoShield from '../assets/logo-shield.png'
+import loginBackground from '../assets/login-investigation.png'
+import { ClipboardList, Car, ChartNoAxesCombined, Users, UserRound, LockKeyhole, ArrowRight } from 'lucide-react'
+import styles from './Login.module.css'
 
 export default function Login() {
   const [nrp, setNrp] = useState('')
@@ -31,47 +34,79 @@ export default function Login() {
   if (modeSetup) return <SetupAdminPertama />
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6" style={{ background: 'radial-gradient(circle at 20% 20%, #16294A, #0B1424 65%)' }}>
-      <img src={logoLengkap} alt="E-Pikpor" className="h-14 w-auto sm:h-16" />
-      <form onSubmit={handleSubmit} className="w-full max-w-[420px] rounded-[20px] bg-paper p-9 shadow-2xl">
-        <img src={logoShield} alt="" className="mb-4 h-11 w-11" />
-        <h1 className="font-display text-[22px] font-semibold">Masuk ke E-Pikpor</h1>
-        <p className="mb-6 mt-1 text-[13px] leading-relaxed text-ink-soft">
-          Unit Gakkum Satlantas Polrestabes Bandung. Masuk dengan NRP dan kata sandi Anda.
-        </p>
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft">NRP</label>
-          <input
-            value={nrp}
-            onChange={(e) => setNrp(e.target.value)}
-            required
-            className="w-full rounded-lg border border-line px-3.5 py-2.5 text-[13.5px] outline-none focus:border-brass focus:ring-2 focus:ring-brass/20"
-            placeholder="Nomor Registrasi Pokok"
-          />
-        </div>
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft">Kata Sandi</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded-lg border border-line px-3.5 py-2.5 text-[13.5px] outline-none focus:border-brass focus:ring-2 focus:ring-brass/20"
-          />
-        </div>
-        {error && <div className="mb-4 rounded-lg bg-bad-bg px-3.5 py-2.5 text-[12.5px] text-bad">{error}</div>}
-        <button
-          type="submit"
-          disabled={memuat}
-          className="w-full rounded-[10px] bg-navy-950 py-3.5 font-display text-[13.5px] font-semibold text-white hover:bg-navy-800 disabled:opacity-40"
-        >
-          {memuat ? 'Memeriksa…' : 'Masuk'}
-        </button>
-        <div className="mt-3.5 text-center text-[11px] text-ink-soft">
-          Akun dibuat oleh Administrator. Hubungi Administrator jika belum punya akun atau lupa kata sandi.
-        </div>
-      </form>
-    </div>
+    <main className={styles.page}>
+      <img src={loginBackground} alt="" aria-hidden="true" className={styles.background} />
+      <div aria-hidden="true" className={styles.overlay} />
+      <div className={styles.composition}>
+        <section className={styles.intro} aria-label="Tentang E-PIKPOR">
+          <div className={styles.leftBrand}>
+            <img src={logoShield} alt="" />
+            <div>
+              <div className={styles.leftWordmark}><span>E-</span>PIKPOR</div>
+              <p className={styles.tagline}>Sistem Pelaporan Piket dan Kejadian Laka Lantas</p>
+            </div>
+          </div>
+          <div aria-hidden="true" className={styles.rule} />
+          <h1 className={styles.heading}>Sistem Pelaporan<br /><span>Piket dan Kejadian</span><br />Laka Lantas</h1>
+          <p className={styles.description}>
+            Aplikasi internal Unit Penegakan Hukum Lalu Lintas{' '}<br className={styles.desktopBreak} />
+            Satlantas Polrestabes Bandung untuk mendukung{' '}<br className={styles.desktopBreak} />
+            pelaporan piket, pencatatan kejadian kecelakaan lalu lintas,{' '}<br className={styles.desktopBreak} />
+            monitoring data, serta integrasi pelaporan yang akuntabel.
+          </p>
+          <ul className={styles.features}>
+            <li><span><ClipboardList aria-hidden="true" /></span><p>PELAPORAN<br />PIKET</p></li>
+            <li><span><Car aria-hidden="true" /></span><p>PELAPORAN<br />KEJADIAN LAKA</p></li>
+            <li><span><ChartNoAxesCombined aria-hidden="true" /></span><p>MONITORING<br />DAN DATA</p></li>
+            <li><span><Users aria-hidden="true" /></span><p>TERINTEGRASI<br />DAN AKUNTABEL</p></li>
+          </ul>
+        </section>
+        <form onSubmit={handleSubmit} aria-labelledby="login-heading" className={styles.panel}>
+          <div className={styles.panelBrand}>
+            <img src={logoShield} alt="" />
+            <div className={styles.panelWordmark}><span>E-</span>PIKPOR</div>
+            <p>Sistem Pelaporan Piket dan Kejadian Laka Lantas</p>
+          </div>
+          <h2 id="login-heading">Masuk ke E-Pikpor</h2>
+          <p className={styles.formDescription}>Unit Penegakan Hukum Lalu Lintas Satlantas Polrestabes Bandung. Masuk dengan NRP dan kata sandi Anda.</p>
+          <div className={styles.field}>
+            <label htmlFor="login-nrp">NRP</label>
+            <div className={styles.inputWrap}>
+              <UserRound aria-hidden="true" />
+              <input
+                id="login-nrp"
+                value={nrp}
+                onChange={(e) => setNrp(e.target.value)}
+                required
+                placeholder="Nomor Registrasi Pokok"
+              />
+            </div>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="login-password">Kata Sandi</label>
+            <div className={styles.inputWrap}>
+              <LockKeyhole aria-hidden="true" />
+              <input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          {error && <div role="alert" className="mb-4 rounded-lg bg-bad-bg px-3.5 py-2.5 text-[12.5px] text-bad">{error}</div>}
+          <button type="submit" disabled={memuat} className={styles.submit}>
+            {memuat ? 'Memeriksa…' : 'Masuk'}<ArrowRight aria-hidden="true" />
+          </button>
+          <div className={styles.helper}>Akun dibuat oleh Administrator. Hubungi Administrator jika belum punya akun atau lupa kata sandi.</div>
+        </form>
+      </div>
+      <footer className={styles.footer}>
+        <p>UNIT PENEGAKAN HUKUM LALU LINTAS SATLANTAS POLRESTABES BANDUNG</p>
+        <p>PELAYANAN <span>•</span> DATA <span>•</span> INTEGRITAS<br />UNTUK KESELAMATAN BERSAMA</p>
+      </footer>
+    </main>
   )
 }
 
