@@ -93,14 +93,14 @@ export default function LaporKegiatan() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1100px]">
       <div className="mb-6">
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Formulir</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Lapor Kegiatan</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight text-navy-950 sm:text-[30px]">Lapor Kegiatan</h1>
         <p className="mt-1 max-w-xl text-[13.5px] text-ink-soft">Waktu, zona, regu, dan nama pelapor terisi otomatis dari sesi piket yang sedang berjalan.</p>
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         {sesi ? (
           <div className="mb-3.5 rounded-lg bg-ok-bg px-3.5 py-2.5 text-[12px] text-[#245C43]">
             ✓ Sesi piket sedang berjalan — Zona {profil.zona?.nama} · Regu {profil.regu?.nomor} · {profil.nama}

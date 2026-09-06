@@ -9,7 +9,7 @@ import { useToast } from './Toast'
 import { ambilLaporanKegiatanMenunggu } from '../lib/laporanKegiatanApi'
 import { ambilLaporanKejadianMenunggu } from '../lib/laporanKejadianApi'
 import { ambilSesiButuhTindakan } from '../lib/sesiPiketApi'
-import { ClipboardList, Database, LayoutDashboard, LogOut, Menu, ShieldCheck } from 'lucide-react'
+import { Archive, ClipboardList, Database, FilePlus2, Home, LayoutDashboard, LogOut, Menu, TriangleAlert } from 'lucide-react'
 
 const PERAN_VERIFIKATOR = ['KASUBNIT', 'KANIT_GAKKUM']
 
@@ -43,7 +43,9 @@ export default function Layout({ profil }) {
   const jumlahMenunggu = useJumlahMenungguVerifikasi(profil.peran_sistem)
   const impersonasi = sedangImpersonasi()
   const lokasiKini = useLocation()
-  const ikonMenu = (tujuan) => tujuan === '/dashboard' || tujuan === '/' ? LayoutDashboard : tujuan.includes('roster') ? ClipboardList : Database
+  const ikonMenu = (tujuan) => tujuan === '/' ? Home : tujuan === '/dashboard' ? LayoutDashboard : tujuan.includes('lapor-kegiatan') ? FilePlus2 : tujuan.includes('kejadian') ? TriangleAlert : tujuan.includes('arsip') ? Archive : tujuan.includes('roster') ? ClipboardList : Database
+  const menuAktif = item.find((m) => m.to === lokasiKini.pathname) || item[0]
+  const IkonHalaman = menuAktif ? ikonMenu(menuAktif.to) : LayoutDashboard
 
   async function kembaliKeAdmin() {
     try { await kembaliDariImpersonasi() }
@@ -81,8 +83,8 @@ export default function Layout({ profil }) {
       <div className="flex items-center justify-between border-b-2 border-brass bg-navy-950 px-4 text-white md:px-6">
         <div className="flex items-center gap-2.5">
           <button aria-label="Buka menu" className="md:hidden" onClick={() => setMenuMobileTerbuka((v) => !v)}><Menu className="h-5 w-5" /></button>
-          <ShieldCheck className="hidden h-5 w-5 text-brass md:block" />
-          <div className="font-display text-[14px] font-bold">Papan Pemantauan</div>
+          <IkonHalaman className="hidden h-5 w-5 text-brass md:block" />
+          <div className="font-display text-[14px] font-bold">{menuAktif?.label || 'E-Pikpor'}</div>
         </div>
         <div className="flex items-center gap-2.5 sm:gap-4">
           <NotifBell penggunaId={profil.id} />

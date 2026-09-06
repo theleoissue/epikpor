@@ -21,7 +21,7 @@ export default function Lightbox({ urls, indexAwal = 0, onClose }) {
       {urls.length > 1 && (
         <button onClick={(e) => { e.stopPropagation(); setIndex((i) => (i - 1 + urls.length) % urls.length) }} className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20">‹</button>
       )}
-      <img src={urls[index]} alt="" className="max-h-[82vh] max-w-[90vw] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+      <img src={urls[index]} alt="" className="max-h-[82vh] max-w-[90vw] rounded-lg shadow-[0_12px_36px_rgba(11,20,36,.18)]" onClick={(e) => e.stopPropagation()} />
       {urls.length > 1 && (
         <button onClick={(e) => { e.stopPropagation(); setIndex((i) => (i + 1) % urls.length) }} className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20">›</button>
       )}

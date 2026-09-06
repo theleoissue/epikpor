@@ -28,13 +28,13 @@ export default function Verifikasi() {
   useEffect(() => { muat() }, [])
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1540px]">
       <div className="mb-5">
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Verifikasi</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Menunggu Tindakan</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight text-navy-950 sm:text-[30px]">Menunggu Tindakan</h1>
         <p className="mt-1 text-[13px] text-ink-soft">Buka detail untuk melihat foto bukti sebelum memverifikasi.</p>
       </div>
-      <div className="mb-4 flex gap-1.5 border-b border-line">
+      <div className="mb-4 flex gap-1.5 overflow-x-auto border-b border-line whitespace-nowrap">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`border-b-2 px-3.5 py-2.5 text-[12.5px] font-semibold ${tab === k ? 'border-brass text-navy-950' : 'border-transparent text-ink-soft'}`}>{l}</button>
         ))}

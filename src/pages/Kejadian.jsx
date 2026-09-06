@@ -210,10 +210,10 @@ export default function Kejadian() {
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="mx-auto w-full max-w-[1100px] space-y-4">
       <div>
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Formulir · Waktu Tanggap</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Kejadian Kecelakaan</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight text-navy-950 sm:text-[30px]">Kejadian Kecelakaan</h1>
         <p className="mt-1 text-[13.5px] text-ink-soft">Isi tanggal dan jam tiap tahap sesuai waktu peristiwanya — bukan waktu formulir ini diisi. Tombol <b>Sekarang</b> tersedia bila tahapnya memang baru saja terjadi. Sistem menghitung sendiri rentang waktunya.</p>
       </div>
 
@@ -313,11 +313,11 @@ export default function Kejadian() {
         })}
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-3.5 font-display text-[14.5px] font-semibold">Lokasi &amp; Klasifikasi</h3>
         <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Lokasi kejadian<Wajib /></label>
         <Field value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="mis. Jl. Pajajaran No. 92, Pamoyanan" className="mb-3 w-full" />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-ink-soft">Jenis kecelakaan<Wajib /></label>
             <Select value={jenisKecelakaanId} onChange={(e) => setJenisKecelakaanId(e.target.value)}>
@@ -335,7 +335,7 @@ export default function Kejadian() {
         </div>
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-1 font-display text-[14.5px] font-semibold">Status Kejadian &amp; Penanganan</h3>
         <p className="mb-3.5 text-[11px] text-ink-soft">Semua pertanyaan di bawah wajib dijawab tegas — tidak ada yang terisi otomatis.</p>
 
@@ -398,14 +398,14 @@ export default function Kejadian() {
         </div>
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-display text-[14.5px] font-semibold">Kendaraan yang Terlibat</h3>
           <button onClick={tambahKendaraan} className="rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold">+ Tambah Kendaraan</button>
         </div>
         {kendaraan.length === 0 && <div className="text-[12px] italic text-ink-soft">Belum ada data.</div>}
         {kendaraan.map((k) => (
-          <div key={k.idSementara} className="mb-2 grid grid-cols-[1fr_1.3fr_1fr_auto] gap-2 rounded-lg border border-line p-2">
+          <div key={k.idSementara} className="mb-2 grid grid-cols-1 gap-2 rounded-lg border border-line p-2 sm:grid-cols-[1fr_1.3fr_1fr_auto]">
             <Select value={k.kategori} onChange={(e) => setKendaraan((arr) => arr.map((x) => x.idSementara === k.idSementara ? { ...x, kategori: e.target.value } : x))}>
               <option value="">— Kategori * —</option>
               {KATEGORI_KENDARAAN.map((c) => <option key={c}>{c}</option>)}
@@ -419,7 +419,7 @@ export default function Kejadian() {
         ))}
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-display text-[14.5px] font-semibold">Identitas Pengendara / Korban</h3>
           <button onClick={tambahOrang} className="rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold">+ Tambah Orang</button>
@@ -439,7 +439,7 @@ export default function Kejadian() {
               />
               Belum teridentifikasi <span className="text-ink-soft">(mis. korban tabrak lari)</span>
             </label>
-            <div className="mb-2 grid grid-cols-3 gap-2">
+            <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Field
                 value={o.belumTeridentifikasi ? '' : o.nama}
                 disabled={o.belumTeridentifikasi}
@@ -452,7 +452,7 @@ export default function Kejadian() {
               </Select>
               <Field value={o.pekerjaan} onChange={(e) => ubahOrang(o.idSementara, { pekerjaan: e.target.value })} placeholder="Pekerjaan" />
             </div>
-            <div className="mb-2 grid grid-cols-3 gap-2">
+            <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Field value={o.tempatLahir} onChange={(e) => ubahOrang(o.idSementara, { tempatLahir: e.target.value })} placeholder="Tempat lahir" />
               <Field
                 type="date" aria-label="Tanggal lahir"
@@ -462,7 +462,7 @@ export default function Kejadian() {
               />
               <Field value={o.alamat} onChange={(e) => ubahOrang(o.idSementara, { alamat: e.target.value })} placeholder="Alamat" />
             </div>
-            <div className="mb-2 grid grid-cols-3 gap-2">
+            <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Select value={o.peran} onChange={(e) => ubahOrang(o.idSementara, { peran: e.target.value })}>
                 <option value="">— Peran —</option>
                 {PERAN_ORANG_OPT.map((p) => <option key={p}>{p}</option>)}
@@ -508,7 +508,7 @@ export default function Kejadian() {
         ))}
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-3 font-display text-[14.5px] font-semibold">Akibat Kecelakaan &amp; Kerugian</h3>
         <div className="mb-3 flex gap-2.5">
           {[['MD', akibat.md], ['LB', akibat.lb], ['LR', akibat.lr]].map(([label, v]) => (
@@ -522,14 +522,14 @@ export default function Kejadian() {
         <Field type="number" min="0" step="1000" value={kerugian} onChange={(e) => setKerugian(e.target.value)} placeholder="Kosongkan bila belum dihitung" className="w-full" />
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5 space-y-3">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5 space-y-3">
         <h3 className="font-display text-[14.5px] font-semibold">Kronologi Kejadian</h3>
         <div><label className="mb-1 block text-[11px] font-semibold text-ink-soft">Pra Laka</label><textarea value={kronologisPra} onChange={(e) => setKronologisPra(e.target.value)} rows={2} className="w-full rounded-lg border border-line p-2 text-[12.5px]" /></div>
         <div><label className="mb-1 block text-[11px] font-semibold text-ink-soft">Saat Laka</label><textarea value={kronologisSaat} onChange={(e) => setKronologisSaat(e.target.value)} rows={2} className="w-full rounded-lg border border-line p-2 text-[12.5px]" /></div>
         <div><label className="mb-1 block text-[11px] font-semibold text-ink-soft">Pasca Laka</label><textarea value={kronologisPasca} onChange={(e) => setKronologisPasca(e.target.value)} rows={2} className="w-full rounded-lg border border-line p-2 text-[12.5px]" /></div>
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5 space-y-3">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5 space-y-3">
         <h3 className="font-display text-[14.5px] font-semibold">Faktor Penyebab</h3>
         <div>
           <div className="mb-1.5 text-[11px] font-semibold text-ink-soft">A. Faktor Manusia</div>
@@ -590,12 +590,12 @@ export default function Kejadian() {
         </div>
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-3 font-display text-[14.5px] font-semibold">Tindakan yang Dilakukan</h3>
         <div className="flex flex-wrap gap-2">{TINDAKAN_OPT.map((o) => <Chip key={o} aktif={tindakan.includes(o)} onClick={() => toggleDalam(tindakan, setTindakan, o)}>{o}</Chip>)}</div>
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-display text-[14.5px] font-semibold">Rencana Tindak Lanjut</h3>
           <button onClick={() => setRtl((r) => [...r, ''])} className="rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold">+ Tambah</button>
@@ -608,7 +608,7 @@ export default function Kejadian() {
         ))}
       </div>
 
-      <div className="rounded-[14px] border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-1 font-display text-[14.5px] font-semibold">Lampiran Foto TKP</h3>
         {/* Kamera HP cuma bisa mengambil satu foto tiap kali dibuka — itu
             batasan sistem kamera perangkat, bukan sesuatu yang bisa diakali
@@ -616,7 +616,7 @@ export default function Kejadian() {
             menambah foto baru ke daftar (tidak menghapus yang sebelumnya),
             jadi beberapa foto tetap bisa terkumpul lewat beberapa kali jepret. */}
         <p className="mb-3 text-[11px] text-ink-soft">Tekan "Ambil foto langsung" berkali-kali untuk menambah beberapa foto — tiap jepretan otomatis ditambahkan, bukan menggantikan yang sudah ada.</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="block cursor-pointer rounded-lg border-[1.5px] border-dashed border-line py-4 text-center text-[12.5px] text-ink-soft hover:border-brass">
             📷 Ambil foto langsung
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { setFoto((f) => [...f, ...Array.from(e.target.files)]); e.target.value = '' }} />

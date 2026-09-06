@@ -193,10 +193,10 @@ export default function Roster() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1540px]">
       <div className="mb-5">
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Roster</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Roster Piket</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight text-navy-950 sm:text-[30px]">Roster Piket</h1>
         <p className="mt-1 max-w-xl text-[13.5px] text-ink-soft">
           Susun sebulan sekaligus, lalu sunting harinya kalau ada penyesuaian. Jadwal tetap disahkan manusia —
           sistem hanya menyalinkan polanya (Dokumen Teknis Bagian 8).
@@ -207,7 +207,7 @@ export default function Roster() {
           lanjutan terlipat di bawah. Sebelumnya penyusun otomatis dan
           formulir manual tampil sederajat tanpa penjelasan kapan memakai
           yang mana, dan penyunting pola terselip di dalam penyusun. */}
-      <div className="mb-5 rounded-2xl border-2 border-brass bg-white p-5">
+      <div className="mb-5 rounded-xl border-2 border-brass bg-white p-5">
         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="font-display text-[15px] font-semibold">
             <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brass text-[11px] font-bold text-navy-950">1</span>
@@ -257,8 +257,8 @@ export default function Roster() {
               <b className="text-ink">{pratinjau.baris.length} baris</b> akan dibuat untuk {NAMA_BULAN[gen.bulan - 1]} {gen.tahun}
               {' · '}{pratinjau.baris.filter((b) => b.pengguna_ids.length === 0).length} baris belum ada personelnya
             </div>
-            <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
-              <table className="w-full text-[11.5px]">
+            <div className="max-h-64 overflow-auto rounded-lg border border-line">
+              <table className="w-full min-w-[520px] text-[11.5px]">
                 <thead className="sticky top-0 bg-paper-dim text-left text-[10.5px] uppercase text-ink-soft">
                   <tr><th className="px-2.5 py-1.5">Tanggal</th><th className="px-2.5 py-1.5">Hari</th><th className="px-2.5 py-1.5">Mode</th><th className="px-2.5 py-1.5">Regu bertugas</th></tr>
                 </thead>
@@ -290,7 +290,7 @@ export default function Roster() {
         )}
       </div>
 
-      <div className="mb-5 rounded-2xl border border-line bg-white p-5">
+      <div className="mb-5 rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="font-display text-[15px] font-semibold">
             <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-navy-900 text-[11px] font-bold text-white">2</span>
@@ -325,7 +325,7 @@ export default function Roster() {
         </div>
       </div>
 
-      <details className="mb-3 rounded-2xl border border-line bg-white">
+      <details className="mb-3 rounded-xl border border-line bg-white">
         <summary className="cursor-pointer list-none px-5 py-3.5 text-[13.5px] font-semibold">
           <span className="mr-1.5 text-ink-soft">▸</span> Sunting satu hari
           <span className="ml-2 text-[11.5px] font-normal text-ink-soft">— penyesuaian di luar pola, mis. cuti atau operasi mendadak</span>
@@ -381,7 +381,7 @@ export default function Roster() {
         </div>
       </details>
 
-      <details className="rounded-2xl border border-line bg-white">
+      <details className="rounded-xl border border-line bg-white">
         <summary className="cursor-pointer list-none px-5 py-3.5 text-[13.5px] font-semibold">
           <span className="mr-1.5 text-ink-soft">▸</span> Atur pola rotasi
           <span className="ml-2 text-[11.5px] font-normal text-ink-soft">— siklus {pola.jumlahMinggu} minggu{bolehUbahPola ? '' : ' (hanya dapat dilihat)'}</span>

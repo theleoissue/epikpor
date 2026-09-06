@@ -31,5 +31,53 @@ body {
 }
 
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+html {
+  min-width: 320px;
+  background: var(--color-paper);
+}
+
+button,
+a,
+label,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-brass);
+  outline-offset: 2px;
+}
+
+main input:not([type='checkbox']):not([type='radio']):not([type='file']),
+main select,
+main textarea {
+  max-width: 100%;
+}
+
+main table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  main {
+    min-width: 0;
+  }
+
+  main table {
+    font-size: 12px;
+  }
+
+  main button,
+  main a {
+    touch-action: manipulation;
+  }
 }

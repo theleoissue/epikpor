@@ -44,7 +44,7 @@ export default function ImporPersonelMassal({ zona, regu, onSelesai, onClose }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-navy-950/55 p-4 py-8" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-3xl rounded-[18px] bg-paper p-6 shadow-2xl">
+      <div className="w-full max-w-3xl rounded-[18px] bg-paper p-6 shadow-[0_12px_36px_rgba(11,20,36,.18)]">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-[18px] font-semibold">Impor Personel dari Bagan Struktur</h2>

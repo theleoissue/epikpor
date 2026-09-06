@@ -50,12 +50,12 @@ function kelompokkanPersonel(daftar) {
 export default function Kelola() {
   const [tab, setTab] = useState('personel')
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1540px]">
       <div className="mb-5">
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Kelola Data</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Data Induk Sistem</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight text-navy-950 sm:text-[30px]">Data Induk Sistem</h1>
       </div>
-      <div className="mb-4 flex gap-1.5 border-b border-line">
+      <div className="mb-4 flex gap-1.5 overflow-x-auto border-b border-line whitespace-nowrap">
         {TABS.map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`border-b-2 px-3.5 py-2.5 text-[12.5px] font-semibold ${tab === k ? 'border-brass text-navy-950' : 'border-transparent text-ink-soft'}`}>{l}</button>)}
       </div>
       {tab === 'personel' && <TabPersonel />}
@@ -189,7 +189,7 @@ function TabPersonel() {
 
   return (
     <div>
-      <div className="mb-5 rounded-2xl border border-line bg-white p-5">
+      <div className="mb-5 rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <div className="mb-3.5 flex items-center justify-between">
           <h3 className="font-display text-[14.5px] font-semibold">Tambah Personel Baru</h3>
           <button onClick={() => setImporTerbuka(true)} className="rounded-lg border border-brass px-3 py-1.5 text-[11.5px] font-semibold text-navy-950 hover:bg-brass/10">📋 Impor dari Bagan Struktur</button>
@@ -219,7 +219,7 @@ function TabPersonel() {
 
       <div className="space-y-4">
         {kelompokPersonel.map(({ zona: namaZona, personel }) => (
-          <div key={namaZona} className="overflow-x-auto rounded-2xl border border-line bg-white">
+          <div key={namaZona} className="overflow-x-auto rounded-xl border border-line bg-white">
             <div className="border-b border-line bg-paper-dim px-3.5 py-2 font-display text-[12.5px] font-bold text-navy-900">
               {namaZona === 'Tanpa Zona' ? 'Pimpinan / Tanpa Zona' : `Zona ${namaZona}`}
             </div>
@@ -248,7 +248,7 @@ function TabPersonel() {
       </div>
 
       {logImpersonasi.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-line bg-white p-4.5">
+        <div className="mt-4 rounded-xl border border-line bg-white p-4.5">
           <h3 className="mb-2.5 font-display text-[13.5px] font-semibold">Riwayat Masuk Sebagai</h3>
           <div className="max-h-56 space-y-1.5 overflow-y-auto text-[12px]">
             {logImpersonasi.map((l) => (
@@ -263,7 +263,7 @@ function TabPersonel() {
 
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setEditTarget(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-paper p-5 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl bg-paper p-5 shadow-[0_12px_36px_rgba(11,20,36,.18)]">
             <h3 className="mb-1 font-display text-[15px] font-semibold">Edit Personel</h3>
             <p className="mb-3.5 text-[12.5px] text-ink-soft">NRP {editTarget.nrp} (NRP tidak bisa diubah di sini)</p>
             <div className="mb-3.5 grid gap-3 sm:grid-cols-2">
@@ -294,7 +294,7 @@ function TabPersonel() {
 
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setResetTarget(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-paper p-5 shadow-2xl">
+          <div className="w-full max-w-sm rounded-xl bg-paper p-5 shadow-[0_12px_36px_rgba(11,20,36,.18)]">
             <h3 className="mb-1 font-display text-[15px] font-semibold">Reset Kata Sandi</h3>
             <p className="mb-3 text-[12.5px] text-ink-soft">Untuk {resetTarget.nama} (NRP {resetTarget.nrp})</p>
             <input
@@ -348,7 +348,7 @@ function TabDaftar({ label, ambil, tambah, nonaktifkan }) {
     catch (e) { toast(e.message || `Gagal menonaktifkan ${label}`, true) }
   }
   return (
-    <div className="rounded-2xl border border-line bg-white p-5">
+    <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
       <h3 className="mb-1 font-display text-[14.5px] font-semibold capitalize">Daftar {label}</h3>
       <div className="mb-3.5 mt-3 flex gap-2">
         <input value={baru} onChange={(e) => setBaru(e.target.value)} placeholder={`Tambah ${label} baru…`} className="flex-1 rounded-lg border border-line px-3 py-2 text-[12.5px]" />
@@ -410,7 +410,7 @@ function TabWilayah() {
 
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <div className="rounded-2xl border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-1 font-display text-[14.5px] font-semibold">Zona</h3>
         <p className="mb-3 text-[11.5px] text-ink-soft">Urutan tampil menentukan urutan kartu zona di Papan Pemantauan.</p>
         <div className="mb-3.5 flex gap-2">
@@ -427,7 +427,7 @@ function TabWilayah() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-line bg-white p-5">
+      <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
         <h3 className="mb-1 font-display text-[14.5px] font-semibold">Regu</h3>
         <p className="mb-3 text-[11.5px] text-ink-soft">Nomor/nama regu, dipakai sama di semua zona.</p>
         <div className="mb-3.5 flex gap-2">
@@ -501,7 +501,7 @@ function TabTitikRawan() {
         <button onClick={mulaiTambah} className="rounded-lg border border-brass px-3 py-1.5 text-[11.5px] font-semibold text-navy-950 hover:bg-brass/10">+ Tambah Titik Rawan</button>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <div className="overflow-x-auto rounded-xl border border-line bg-white">
         <table className="w-full min-w-[560px] text-[12.5px]">
           <thead><tr className="bg-paper-dim text-left text-[11px] uppercase text-ink-soft"><th className="px-3.5 py-2.5">Nama Jalan</th><th className="px-3.5 py-2.5">Kejadian</th><th className="px-3.5 py-2.5">MD/LB/LR</th><th className="px-3.5 py-2.5"></th></tr></thead>
           <tbody>
@@ -523,7 +523,7 @@ function TabTitikRawan() {
 
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/55 p-4" onClick={(e) => e.target === e.currentTarget && setEditTarget(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-paper p-5 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl bg-paper p-5 shadow-[0_12px_36px_rgba(11,20,36,.18)]">
             <h3 className="mb-3.5 font-display text-[15px] font-semibold">{editTarget.id ? 'Edit' : 'Tambah'} Titik Rawan</h3>
             <div className="mb-3.5 grid gap-3">
               <input value={editTarget.nama_jalan} onChange={(e) => setEditTarget((f) => ({ ...f, nama_jalan: e.target.value }))} placeholder="Nama jalan / lokasi" className="rounded-lg border border-line px-3 py-2 text-[12.5px]" />

@@ -69,12 +69,12 @@ export default function Arsip() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1540px]">
       <div className="mb-5">
         <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Arsip</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Arsip &amp; Pencarian</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight text-navy-950 sm:text-[30px]">Arsip &amp; Pencarian</h1>
       </div>
-      <div className="mb-4 flex gap-1.5 border-b border-line">
+      <div className="mb-4 flex gap-1.5 overflow-x-auto border-b border-line whitespace-nowrap">
         {TABS.map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`border-b-2 px-3.5 py-2.5 text-[12.5px] font-semibold ${tab === k ? 'border-brass text-navy-950' : 'border-transparent text-ink-soft'}`}>{l}</button>)}
       </div>
 
@@ -156,7 +156,7 @@ function KonfirmasiHapus({ target, onBatal, onHapus }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-[420px] rounded-xl bg-white p-6 shadow-[0_12px_36px_rgba(11,20,36,.18)]">
         <h2 className="font-display text-[17px] font-semibold text-bad">Hapus laporan permanen?</h2>
         <p className="mt-2 text-[12.5px] leading-relaxed text-ink-soft">
           <span className="font-semibold text-ink">{target.ringkasan}</span> akan dihapus <span className="font-semibold">selama-lamanya</span>, termasuk seluruh foto lampirannya. Tindakan ini tidak bisa dibatalkan.
