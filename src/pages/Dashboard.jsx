@@ -4,6 +4,7 @@ import { ambilZona, ambilTitikRawan, ambilRekapHistoris } from '../lib/referensi
 import { ambilJadwalHariIni } from '../lib/rosterApi'
 import { rekapBulanan } from '../lib/laporanKejadianApi'
 import { SASARAN_WAKTU_TANGGAP, bulanJakarta, akhirPekanJakarta } from '../lib/format'
+import { BadgeCheck, CalendarDays, ClipboardList, Clock3, MapPin, TriangleAlert, Users } from 'lucide-react'
 
 const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -88,87 +89,86 @@ export default function Dashboard() {
   }, [])
 
   const maxJumlah = Math.max(1, ...rekap.map((r) => r.jumlah))
+  const totalDijadwalkan = zonaCards.reduce((total, z) => total + z.dijadwalkanCount, 0)
+  const totalSesiAktif = zonaCards.reduce((total, z) => total + (z.aktif || 0), 0)
+  const sekarang = new Date()
+  const tanggalTampil = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' }).format(sekarang)
+  const waktuTampil = new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }).format(sekarang).replace('.', ':')
 
   return (
-    <div>
-      <div className="mb-5">
-        <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-warn">Papan Pemantauan</div>
-        <h1 className="mt-1 font-display text-[22px] font-semibold">Keadaan Operasional Saat Ini</h1>
-        <p className="mt-1 max-w-xl text-[13.5px] text-ink-soft">Statistik dihitung langsung dari data yang tersimpan — bukan angka tetap.</p>
-      </div>
+    <div className="mx-auto w-full max-w-[1540px]">
+      <header className="mb-3 flex min-h-[90px] items-center justify-between gap-4">
+        <div>
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-warn">Papan Pemantauan</div>
+        <h1 className="mt-1 font-display text-[27px] font-bold leading-[1.08] text-navy-950 sm:text-[32px]">Keadaan Operasional Saat Ini</h1>
+        <p className="mt-1.5 text-[12.5px] text-ink-soft sm:text-[13px]">Statistik dihitung langsung dari data yang tersimpan — bukan angka tetap.</p>
+        </div>
+        <div className="hidden items-center gap-3 text-navy-950 lg:flex"><CalendarDays className="h-7 w-7" /><div><div className="text-[12px]">{tanggalTampil}</div><div className="font-display text-[22px] font-bold leading-none">{waktuTampil} WIB</div></div><div className="ml-5 border-l border-line pl-5 text-right"><div className="text-[10.5px] text-ink-soft">Unit Gakkum Satlantas</div><div className="font-display text-[12px] font-bold">Polrestabes Bandung</div></div></div>
+      </header>
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        {zonaCards.map((z) => {
-          const kurang = z.dijadwalkanCount > 0 && z.aktif < z.dijadwalkanCount
-          return (
-            <div key={z.id} className="rounded-2xl border border-line bg-white p-4.5">
-              <div className="mb-3 flex items-start justify-between">
-                <div>
-                  <div className="font-display text-[15px] font-bold">Zona {z.nama}</div>
-                  <div className="text-[11px] text-ink-soft">{z.kasubnit ? `Kasubnit: ${z.kasubnit.pangkat ? `${z.kasubnit.pangkat} ` : ''}${z.kasubnit.nama}` : 'Kasubnit belum ditetapkan'}</div>
+      <section className="mb-3.5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indikator operasional">
+        <Kpi icon={Users} label="Personel dijadwalkan" val={totalDijadwalkan} sub="hari ini" tone="blue" />
+        <Kpi icon={BadgeCheck} label="Sesi piket aktif" val={totalSesiAktif} sub={`dari ${zonaCards.length} zona`} tone="green" />
+        <Kpi icon={ClipboardList} label="Total laporan" val={(stats?.totalKeg || 0) + (stats?.totalKej || 0)} sub="kegiatan dan kejadian" tone="violet" />
+        <Kpi icon={Clock3} label="Menunggu verifikasi" val={stats?.menunggu || 0} sub="perlu tindak lanjut" tone="amber" />
+      </section>
+
+      <section className="mb-3.5" aria-label="Pemantauan zona">
+        <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+          {zonaCards.map((z) => {
+            const kurang = z.dijadwalkanCount > 0 && z.aktif < z.dijadwalkanCount
+            return (
+              <article key={z.id} className="h-[245px] overflow-hidden rounded-[10px] border border-line bg-white shadow-[0_1px_2px_rgba(15,23,42,.05),0_4px_12px_rgba(15,23,42,.025)]">
+                <div className="flex h-[78px] items-center justify-between gap-3 bg-[#102744] px-4 text-white">
+                  <div className="flex min-w-0 gap-2.5"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brass" />
+                  <div className="min-w-0"><h3 className="font-display text-[15px] font-bold">Zona {z.nama}</h3>
+                    <p className="mt-1 truncate text-[10.5px] text-white/70">{z.kasubnit ? `Kasubnit: ${z.kasubnit.pangkat ? `${z.kasubnit.pangkat} ` : ''}${z.kasubnit.nama}` : 'Kasubnit belum ditetapkan'}</p></div>
+                  </div>
+                  <span className={`flex h-[27px] shrink-0 items-center rounded-full px-2.5 text-[10px] font-bold leading-tight ${kurang ? 'bg-[#F5D681] text-[#684300]' : z.aktif > 0 ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>
+                    {kurang ? `Kurang ${z.dijadwalkanCount - z.aktif} personel` : z.aktif > 0 ? 'Piket aktif' : 'Tidak ada sesi aktif'}
+                  </span>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${kurang ? 'bg-warn-bg text-warn' : z.aktif > 0 ? 'bg-ok-bg text-ok' : 'bg-bad-bg text-bad'}`}>
-                  {kurang ? `Kurang ${z.dijadwalkanCount - z.aktif} personel` : z.aktif > 0 ? 'Piket aktif' : 'Tidak ada sesi aktif'}
-                </span>
-              </div>
-              <Row label="Dijadwalkan hari ini" v={z.dijadwalkanCount} />
-              <Row label="Sesi piket aktif" v={z.aktif} />
-              <Row label="Laporan kegiatan" v={z.menungguKeg} />
-              <Row label="Kejadian tercatat" v={z.menungguKej} />
+                <dl className="px-4 py-1">
+                  <Row icon={CalendarDays} label="Dijadwalkan hari ini" v={z.dijadwalkanCount} />
+                  <Row icon={Users} label="Sesi piket aktif" v={z.aktif} />
+                  <Row icon={ClipboardList} label="Laporan kegiatan" v={z.menungguKeg} />
+                  <Row icon={TriangleAlert} label="Kejadian tercatat" v={z.menungguKej} />
+                </dl>
+              </article>
+            )
+          })}
+        </div>
+      </section>
+
+      {stats && <section className="mb-3.5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4" aria-label="Status laporan">
+        <StatBox icon={ClipboardList} tone="blue" label="Laporan kegiatan" val={stats.totalKeg} sub="total tersimpan" />
+        <StatBox icon={TriangleAlert} tone="red" label="Kejadian kecelakaan" val={stats.totalKej} sub={`MD ${stats.md} · LB ${stats.lb} · LR ${stats.lr}`} />
+        <StatBox icon={BadgeCheck} tone="green" label="Sudah terverifikasi" val={`${stats.pct}%`} sub="dari seluruh laporan" />
+        <StatBox icon={Clock3} tone="amber" label="Menunggu verifikasi" val={stats.menunggu} sub="perlu tindak lanjut" />
+      </section>}
+
+      <section className="grid items-start gap-3.5 xl:grid-cols-[minmax(0,2fr)_minmax(300px,0.95fr)]" aria-label="Analitik dashboard">
+        <div className="min-h-[195px] rounded-[10px] border border-line bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.05),0_4px_12px_rgba(15,23,42,.025)]">
+          <div className="mb-3 flex items-center justify-between"><h2 className="font-display text-[15px] font-bold text-navy-950">Rekap Laporan Bulanan</h2><span className="rounded-md border border-line px-2.5 py-1 text-[10.5px] font-semibold">Tahun {new Date().getFullYear()}</span></div>
+          <div className="relative flex h-[142px] items-end gap-2 border-b border-line px-1 pt-2 sm:gap-3">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[28px] top-2 flex flex-col justify-between"><span className="border-t border-dashed border-line/70" /><span className="border-t border-dashed border-line/70" /><span className="border-t border-dashed border-line/70" /><span className="border-t border-dashed border-line/70" /></div>
+            {rekap.map((r) => <div key={r.bulan} className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-end text-center"><div className="mb-1 text-[9px] font-bold text-ink-soft">{r.jumlah}</div><div className={`mx-auto w-[70%] max-w-8 rounded-t-sm ${r.historis ? 'bg-brass' : 'bg-navy-700'}`} style={{ height: `${Math.max(2, (r.jumlah / maxJumlah) * 105)}px` }} /><div className="mt-1.5 text-[9.5px] text-ink-soft">{r.bulan}</div></div>)}
+          </div>
+          <p className="mt-2 text-[9.5px] text-ink-soft"><span className="text-brass">●</span> Data laporan bulanan fisik; bulan lain berasal dari laporan aplikasi.</p>
+        </div>
+        <div className="grid gap-3">
+          <div className="rounded-[10px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(11,20,36,0.05)]">
+            <h2 className="mb-2.5 font-display text-[15px] font-bold text-navy-950">Status Zona</h2>
+            {zonaCards.map((z) => { const kurang = z.dijadwalkanCount > 0 && z.aktif < z.dijadwalkanCount; return <div key={z.id} className="flex items-center justify-between gap-3 border-t border-paper-dim py-2 text-[11.5px]"><span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${kurang ? 'bg-bad' : 'bg-ok'}`} />Zona {z.nama}</span><span className={`rounded-full px-2 py-0.5 text-[9.5px] ${kurang ? 'bg-warn-bg text-warn' : 'bg-ok-bg text-ok'}`}>{kurang ? `Kurang ${z.dijadwalkanCount - z.aktif} personel` : z.aktif > 0 ? 'Piket aktif' : 'Tidak aktif'}</span></div> })}
+          </div>
+          <div className="hidden">{pekan && <PanelSiagaWiken pekan={pekan} />}</div>
+          <div className="hidden rounded-[10px] border border-line bg-white p-4">
+            <h2 className="mb-2 font-display text-[14px] font-bold">Titik rawan teratas</h2>
+            {titikRawan.length === 0 && <p className="text-[11px] italic text-ink-soft">Belum ada data titik rawan.</p>}
+            {titikRawan.map((t) => <a key={t.id} href={`https://www.google.com/maps?q=${t.latitude},${t.longitude}`} target="_blank" rel="noreferrer" className="flex gap-2 border-t border-paper-dim py-1.5 text-[10.5px]"><MapPin className="h-3.5 w-3.5 shrink-0 text-bad" /><span><b>{t.nama_jalan}</b> · {t.jumlah_laka} kejadian · MD {t.md} · LB {t.lb} · LR {t.lr}</span></a>)}
             </div>
-          )
-        })}
-      </div>
-
-      {stats && (
-        <div className="mb-5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          <StatBox label="Laporan kegiatan" val={stats.totalKeg} sub="total tersimpan" />
-          <StatBox label="Kejadian kecelakaan" val={stats.totalKej} sub={`MD ${stats.md} · LB ${stats.lb} · LR ${stats.lr}`} />
-          <StatBox label="Sudah terverifikasi" val={`${stats.pct}%`} sub="dari seluruh laporan" />
-          <StatBox label="Menunggu verifikasi" val={stats.menunggu} sub="perlu tindak lanjut" />
         </div>
-      )}
-
-      {pekan && <PanelSiagaWiken pekan={pekan} />}
-
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-2xl border border-line bg-white p-5">
-          <h3 className="mb-1 font-display text-[14.5px] font-semibold">Rekapitulasi bulanan {new Date().getFullYear()}</h3>
-          <p className="mb-4 text-[11px] text-ink-soft">Bulan bertanda <span className="text-brass">●</span> pakai angka Laporan Bulanan fisik dari sebelum E-Pikpor berjalan; bulan lain dihitung langsung dari laporan yang masuk lewat aplikasi.</p>
-          {rekap.map((r) => (
-            <div key={r.bulan} className="mb-2.5 flex items-center gap-2.5 text-[12px]">
-              <div className="flex w-11 items-center gap-1 text-ink-soft">
-                {r.bulan}{r.historis && <span className="text-brass">●</span>}
-              </div>
-              <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper-dim">
-                <div className={`h-full rounded-full ${r.historis ? 'bg-brass' : 'bg-navy-800'}`} style={{ width: `${(r.jumlah / maxJumlah) * 100}%` }} />
-              </div>
-              <div className="w-6 text-right font-mono font-semibold">{r.jumlah}</div>
-              {(r.lewatTerima > 0 || r.lewatTiba > 0) && <div className="w-28 text-[10.5px] text-warn">{r.lewatTerima + r.lewatTiba} lampaui sasaran</div>}
-            </div>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-line bg-white p-5">
-          <h3 className="mb-1 font-display text-[14.5px] font-semibold">Titik rawan teratas</h3>
-          <p className="mb-3 text-[11px] text-ink-soft">Berkas blackspot Satlantas Polrestabes Bandung</p>
-          {titikRawan.length === 0 && <div className="text-[12px] italic text-ink-soft">Belum ada data titik rawan.</div>}
-          {titikRawan.map((t) => (
-            <a
-              key={t.id}
-              href={`https://www.google.com/maps?q=${t.latitude},${t.longitude}`}
-              target="_blank" rel="noreferrer"
-              className="mb-2.5 flex gap-2.5 border-b border-dashed border-paper-dim pb-2.5 text-[12px] last:mb-0 last:border-none last:pb-0 hover:text-navy-900"
-            >
-              <div className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-bad" />
-              <div>
-                <div className="font-semibold">{t.nama_jalan}</div>
-                <div className="text-[10.5px] text-ink-soft">{t.jumlah_laka} kejadian · MD {t.md} · LB {t.lb} · LR {t.lr}</div>
-              </div>
-            </a>
-          ))}
-        </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -189,17 +189,17 @@ function PanelSiagaWiken({ pekan }) {
   ]
 
   return (
-    <div className="mb-5 rounded-2xl border border-line bg-white p-5">
+    <div className="rounded-xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(11,20,36,0.04)] sm:p-5">
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-display text-[14.5px] font-semibold">Kejadian: hari kerja vs akhir pekan</h3>
-        <span className="font-mono text-[10.5px] uppercase tracking-wide text-warn">Tolok ukur Siaga Wiken</span>
+        <h3 className="font-display text-[14.5px] font-semibold text-navy-950">Hari kerja vs akhir pekan</h3>
+        <span className="rounded bg-warn-bg px-2 py-1 font-mono text-[9.5px] font-bold uppercase tracking-wide text-warn">Siaga Wiken</span>
       </div>
-      <p className="mb-4 text-[11px] text-ink-soft">
+      <p className="mb-4 border-b border-paper-dim pb-3 text-[11px] leading-relaxed text-ink-soft">
         Dihitung dari waktu kejadian, bukan waktu laporan dikirim. Hanya mencakup kejadian yang masuk lewat aplikasi ini.
       </p>
 
       {pekan.total === 0 ? (
-        <div className="rounded-lg border border-dashed border-line p-6 text-center text-[12.5px] text-ink-soft">
+        <div className="rounded-lg border border-dashed border-line p-5 text-center text-[12px] leading-relaxed text-ink-soft">
           Belum ada kejadian tercatat tahun ini. Angka akan muncul begitu laporan pertama masuk.
         </div>
       ) : (
@@ -207,23 +207,23 @@ function PanelSiagaWiken({ pekan }) {
           <div className="space-y-3">
             {baris.map(([judul, hari, jumlah, pct, warna]) => (
               <div key={judul}>
-                <div className="mb-1 flex items-baseline justify-between text-[12.5px]">
+                <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[12px]">
                   <span><b>{judul}</b> <span className="text-ink-soft">{hari}</span></span>
-                  <span className="font-mono font-semibold tabular-nums">{jumlah} kejadian · {pct}%</span>
+                  <span className="shrink-0 font-mono font-semibold tabular-nums">{jumlah} · {pct}%</span>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-paper-dim">
-                  <div className={`h-full rounded-full ${warna}`} style={{ width: `${pct}%` }} />
+                <div className="h-2 overflow-hidden rounded-sm bg-paper-dim">
+                  <div className={`h-full rounded-sm ${warna}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-dashed border-paper-dim pt-3 text-[11.5px]">
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-dashed border-paper-dim pt-3 text-[10.5px] leading-relaxed">
             <span className="text-ink-soft">
               Sebelum Siaga Wiken (RAP, Jan–Mar 2026): akhir pekan <b className="text-ink">{DASAR_RAP.persen}%</b> dari {DASAR_RAP.total} kejadian
             </span>
             {selisih !== null && (
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${selisih > 0 ? 'bg-bad-bg text-bad' : selisih < 0 ? 'bg-ok-bg text-ok' : 'bg-paper-dim text-ink-soft'}`}>
+              <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${selisih > 0 ? 'bg-bad-bg text-bad' : selisih < 0 ? 'bg-ok-bg text-ok' : 'bg-paper-dim text-ink-soft'}`}>
                 {selisih > 0 ? `▲ ${selisih}` : selisih < 0 ? `▼ ${Math.abs(selisih)}` : 'setara'} poin
               </span>
             )}
@@ -234,15 +234,43 @@ function PanelSiagaWiken({ pekan }) {
   )
 }
 
-function Row({ label, v }) {
-  return <div className="flex justify-between border-b border-dashed border-paper-dim py-1.5 text-[12.5px] last:border-none"><span>{label}</span><span className="font-mono font-semibold">{v}</span></div>
+function Row({ icon: Icon, label, v }) {
+  return <div className="flex h-10 items-center justify-between gap-4 border-b border-dashed border-paper-dim text-[12.5px] last:border-none"><dt className="flex items-center gap-2.5 text-ink"><Icon className="h-4 w-4 text-navy-800" />{label}</dt><dd className="font-mono text-[13px] font-bold tabular-nums text-navy-950">{v}</dd></div>
 }
-function StatBox({ label, val, sub }) {
+
+const KPI_TONE = {
+  blue: 'bg-[#E2EFFB] text-[#075DB9]', green: 'bg-[#DDF3E9] text-ok',
+  violet: 'bg-[#ECE6FA] text-[#4934A8]', amber: 'bg-[#F9EBC7] text-warn',
+}
+
+function Kpi({ icon: Icon, label, val, sub, tone }) {
+  return <article className="flex h-[104px] items-center gap-3.5 rounded-[10px] border border-line bg-white px-[17px] py-[15px] shadow-[0_1px_2px_rgba(15,23,42,.05),0_4px_12px_rgba(15,23,42,.025)]">
+    <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${KPI_TONE[tone]}`}><Icon className="h-6 w-6" /></span>
+    <div className="min-w-0"><div className="truncate text-[11px] font-bold uppercase tracking-[0.04em] text-ink-soft">{label}</div><div className="mt-0.5 font-display text-[31px] font-bold leading-none text-navy-950 tabular-nums">{val}</div><div className="mt-1 text-[11.5px] text-ink-soft">{sub}</div></div>
+  </article>
+}
+
+const STAT_TONE = {
+  blue: { border: 'border-[#BDD9F3] bg-[#F5FAFF]', icon: 'bg-[#E7EEF7] text-navy-700' },
+  red: { border: 'border-[#F1C8C8] bg-[#FFF8F8]', icon: 'bg-bad-bg text-bad' },
+  green: { border: 'border-[#BFE2D5] bg-[#F5FCF9]', icon: 'bg-ok-bg text-ok' },
+  amber: { border: 'border-[#EBD49C] bg-[#FFFCF5]', icon: 'bg-warn-bg text-warn' },
+}
+
+function StatBox({ icon: Icon, tone, label, val, sub }) {
+  const warna = STAT_TONE[tone]
   return (
-    <div className="rounded-2xl border border-line bg-white p-4">
-      <div className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-soft">{label}</div>
-      <div className="mt-1.5 font-display text-[24px] font-bold">{val}</div>
-      <div className="mt-0.5 text-[11px] text-ink-soft">{sub}</div>
-    </div>
+    <article className={`h-[116px] rounded-[10px] border p-4 shadow-[0_1px_2px_rgba(15,23,42,.05),0_4px_12px_rgba(15,23,42,.025)] ${warna.border}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-soft">{label}</div>
+          <div className="mt-1.5 font-display text-[30px] font-bold leading-none text-navy-950 tabular-nums">{val}</div>
+          <div className="mt-1.5 text-[11.5px] text-ink-soft">{sub}</div>
+        </div>
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${warna.icon}`}>
+          <Icon aria-hidden="true" className="h-[21px] w-[21px]" strokeWidth={1.8} />
+        </span>
+      </div>
+    </article>
   )
 }
