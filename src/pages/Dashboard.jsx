@@ -54,7 +54,6 @@ export default function Dashboard() {
       })
 
       const tahunIni = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', year: 'numeric' }).format(new Date()))
-      const bulanIni = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', month: 'numeric' }).format(new Date())) - 1
       const [dataKejadian, historis, rawan] = await Promise.all([
         rekapBulanan(tahunIni),
         ambilRekapHistoris(tahunIni),
@@ -84,7 +83,7 @@ export default function Dashboard() {
       const rekapSejakEpikpor = perBulan.filter((_, indeksBulan) => {
         if (tahunIni < TAHUN_MULAI_EPIKPOR) return false
         const bulanAwal = tahunIni === TAHUN_MULAI_EPIKPOR ? BULAN_MULAI_EPIKPOR : 0
-        return indeksBulan >= bulanAwal && indeksBulan <= bulanIni
+        return indeksBulan >= bulanAwal
       })
       setRekap(rekapSejakEpikpor)
       setTitikRawan(rawan)
