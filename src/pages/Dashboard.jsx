@@ -7,6 +7,8 @@ import { SASARAN_WAKTU_TANGGAP, bulanJakarta, akhirPekanJakarta } from '../lib/f
 import { BadgeCheck, CalendarDays, ClipboardList, Clock3, MapPin, TriangleAlert, Users } from 'lucide-react'
 
 const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+const TAHUN_MULAI_EPIKPOR = 2026
+const BULAN_MULAI_EPIKPOR = 7 // Agustus, indeks bulan JavaScript dimulai dari 0
 
 export default function Dashboard() {
   const [zonaCards, setZonaCards] = useState([])
@@ -52,6 +54,7 @@ export default function Dashboard() {
       })
 
       const tahunIni = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', year: 'numeric' }).format(new Date()))
+      const bulanIni = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', month: 'numeric' }).format(new Date())) - 1
       const [dataKejadian, historis, rawan] = await Promise.all([
         rekapBulanan(tahunIni),
         ambilRekapHistoris(tahunIni),
@@ -75,7 +78,15 @@ export default function Dashboard() {
           historis: false,
         }
       })
-      setRekap(perBulan)
+      // Chart operasional hanya menampilkan periode sejak E-PIKPOR mulai
+      // digunakan. Data historis sebelum Agustus 2026 tetap tersimpan dan
+      // tetap dapat dipakai untuk kebutuhan laporan lain.
+      const rekapSejakEpikpor = perBulan.filter((_, indeksBulan) => {
+        if (tahunIni < TAHUN_MULAI_EPIKPOR) return false
+        const bulanAwal = tahunIni === TAHUN_MULAI_EPIKPOR ? BULAN_MULAI_EPIKPOR : 0
+        return indeksBulan >= bulanAwal && indeksBulan <= bulanIni
+      })
+      setRekap(rekapSejakEpikpor)
       setTitikRawan(rawan)
 
       // Pemisahan hari kerja vs akhir pekan — tolok ukur utama aksi perubahan
@@ -154,7 +165,7 @@ export default function Dashboard() {
             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[28px] top-2 flex flex-col justify-between"><span className="border-t border-dashed border-line/70" /><span className="border-t border-dashed border-line/70" /><span className="border-t border-dashed border-line/70" /><span className="border-t border-dashed border-line/70" /></div>
             {rekap.map((r) => <div key={r.bulan} className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-end text-center"><div className="mb-1 text-[9px] font-bold text-ink-soft">{r.jumlah}</div><div className={`mx-auto w-[70%] max-w-8 rounded-t-sm ${r.historis ? 'bg-brass' : 'bg-navy-700'}`} style={{ height: `${Math.max(2, (r.jumlah / maxJumlah) * 105)}px` }} /><div className="mt-1.5 text-[9.5px] text-ink-soft">{r.bulan}</div></div>)}
           </div>
-          <p className="mt-2 text-[9.5px] text-ink-soft"><span className="text-brass">●</span> Data laporan bulanan fisik; bulan lain berasal dari laporan aplikasi.</p>
+          <p className="mt-2 text-[9.5px] text-ink-soft"><span className="text-navy-700">●</span> Data laporan yang tercatat melalui E-PIKPOR sejak Agustus 2026.</p>
         </div>
         <div className="grid gap-3">
           <div className="rounded-[10px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(11,20,36,0.05)]">
