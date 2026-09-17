@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast'
 import Lightbox from './Lightbox'
 import { urlTertandaTangan } from '../lib/storage'
 import { fmtTime, fmtDate, fmtRupiah, keInputTanggal, keInputJam, gabungTanggalJam } from '../lib/format'
-import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan, bukaKembaliLaporanKegiatan } from '../lib/laporanKegiatanApi'
+import { ambilSatuKegiatan, verifikasiLaporanKegiatan, perbaruiLaporanKegiatan, bukaKembaliLaporanKegiatan, tambahLampiranKegiatan, hapusSatuLampiranKegiatan } from '../lib/laporanKegiatanApi'
 import { ambilSatuKejadian, verifikasiLaporanKejadian, perbaruiLaporanKejadian, gantiOrangDanKendaraan, bukaKembaliLaporanKejadian, ambilLogKejadian, tambahLampiranKejadian, hapusSatuLampiranKejadian } from '../lib/laporanKejadianApi'
 import { ambilSatuSesi, verifikasiSesi, kecualikanSesi, ambilLogSesi } from '../lib/sesiPiketApi'
 import { ambilKomentar, kirimKomentar } from '../lib/komentarApi'
@@ -32,7 +32,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const toast = useToast()
   const [data, setData] = useState(null)
   const [fotoUrls, setFotoUrls] = useState([])
-  const [lampiranKejadian, setLampiranKejadian] = useState([]) // sejajar fotoUrls: {id, storage_path}, khusus tipe kejadian
+  const [lampiranArr, setLampiranArr] = useState([]) // sejajar fotoUrls: {id, storage_path}, tipe kegiatan & kejadian
   const [grupFoto, setGrupFoto] = useState(null) // khusus sesi: foto dipisah per tahap (masuk/keluar)
   const [komentar, setKomentar] = useState([])
   const [log, setLog] = useState([])
@@ -54,8 +54,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
       if (tipe === 'kegiatan') {
         const x = await ambilSatuKegiatan(id)
         setData(x)
-        const paths = (x.lampiran || []).sort((a, b) => a.urutan - b.urutan).map((l) => l.storage_path)
-        setFotoUrls((await Promise.all(paths.map((p) => urlTertandaTangan('foto-kegiatan', p)))).filter(Boolean))
+        const lampiran = (x.lampiran || []).sort((a, b) => a.urutan - b.urutan)
+        const dijamin = await Promise.all(lampiran.map(async (l) => ({ ...l, url: await urlTertandaTangan('foto-kegiatan', l.storage_path) })))
+        const valid = dijamin.filter((l) => l.url)
+        setFotoUrls(valid.map((l) => l.url))
+        setLampiranArr(valid)
         setKomentar(await ambilKomentar('KEGIATAN', id))
       } else if (tipe === 'kejadian') {
         const x = await ambilSatuKejadian(id)
@@ -64,7 +67,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
         const dijamin = await Promise.all(lampiran.map(async (l) => ({ ...l, url: await urlTertandaTangan('foto-kejadian', l.storage_path) })))
         const valid = dijamin.filter((l) => l.url)
         setFotoUrls(valid.map((l) => l.url))
-        setLampiranKejadian(valid)
+        setLampiranArr(valid)
         setKomentar(await ambilKomentar('KEJADIAN', id))
         setLog(await ambilLogKejadian(id))
       } else {
@@ -237,9 +240,11 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
     if (!files?.length) return
     setMengunggahFoto(true)
     try {
+      const bucket = tipe === 'kegiatan' ? 'foto-kegiatan' : 'foto-kejadian'
+      const tambah = tipe === 'kegiatan' ? tambahLampiranKegiatan : tambahLampiranKejadian
       const paths = []
-      for (const file of files) paths.push(await unggahFoto('foto-kejadian', file))
-      await tambahLampiranKejadian(id, paths)
+      for (const file of files) paths.push(await unggahFoto(bucket, file))
+      await tambah(id, paths)
       toast('Foto ditambahkan')
       muat()
     } catch (e) {
@@ -252,7 +257,8 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   async function hapusFoto(lampiran) {
     if (!window.confirm('Hapus foto ini?')) return
     try {
-      await hapusSatuLampiranKejadian(lampiran.id, lampiran.storage_path)
+      const hapus = tipe === 'kegiatan' ? hapusSatuLampiranKegiatan : hapusSatuLampiranKejadian
+      await hapus(lampiran.id, lampiran.storage_path)
       toast('Foto dihapus')
       muat()
     } catch (e) {
@@ -292,7 +298,7 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
   const bisaBukaKembali = tipe !== 'sesi' && data.status === 'TERVERIFIKASI' && PERAN_VERIFIKATOR.includes(profil.peran_sistem)
   // Wewenang sama dengan hapus arsip (RLS-10/RLS-11) — bukan pelapor, supaya
   // dokumentasi susulan bisa dilampirkan tanpa tergantung status verifikasi.
-  const bisaTambahFoto = tipe === 'kejadian' && ['ADMIN', 'KANIT_GAKKUM'].includes(profil.peran_sistem)
+  const bisaTambahFoto = (tipe === 'kegiatan' || tipe === 'kejadian') && ['ADMIN', 'KANIT_GAKKUM'].includes(profil.peran_sistem)
   // Koordinat direkam otomatis saat sesi dibuka / laporan dikirim (lihat
   // getGeoPosition di storage.js) — bisa null kalau personel menolak izin
   // lokasi atau GPS-nya tidak terkunci saat itu.
@@ -455,9 +461,9 @@ export default function DetailModal({ tipe, id, onClose, onUbah }) {
                       <button onClick={() => setLightboxAwal(i)} className="h-full w-full">
                         <img src={u} alt="" className="h-full w-full object-cover" />
                       </button>
-                      {bisaTambahFoto && lampiranKejadian[i] && (
+                      {bisaTambahFoto && lampiranArr[i] && (
                         <button
-                          onClick={() => hapusFoto(lampiranKejadian[i])}
+                          onClick={() => hapusFoto(lampiranArr[i])}
                           title="Hapus foto ini"
                           className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-bad text-[11px] font-bold leading-none text-white shadow"
                         >✕</button>
